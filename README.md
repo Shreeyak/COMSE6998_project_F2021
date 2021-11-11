@@ -14,4 +14,4 @@
 
 @project_info
 -------------
-- Title: Regressing 3D Transformation Matrices Using Computer Vision
+- Title: Regressing Observed 3D Transformation Matrices Using Deep Learning
