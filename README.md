@@ -14,4 +14,4 @@
 
 @project_info
 -------------
-TBD lol
+- Title: Regressing 3D Transformation Matrices Using Computer Vision
