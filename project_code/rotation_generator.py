@@ -20,8 +20,8 @@ class RotationGenerator:
         init function for the RotationGenerator class.
 
         Args:
-            angle_max: The maximum radian value for all randomly generated
-                       angles of rotation.
+            angle_max: The maximum radian value for all randomly 
+	    	       generated angles of rotation.
         """
         self.angle_max = angle_max
 
@@ -29,9 +29,11 @@ class RotationGenerator:
         """
         A method to generate a random simple 3D rotation matrix.
 
-        A simple 3D rotation is a rotation by one angle theta about one axis, which here is also randomly chosen.
+        A simple 3D rotation is a rotation by one angle theta about one
+	axis, which here is also randomly chosen.
 
-        Return: A 3x3 matrix describing a simple rotation transformation.
+        Return: A 3x3 matrix describing a simple rotation 
+	transformation.
         """
         theta = random.uniform(0, self.angle_max)
         cos_val, sin_val = np.cos(theta), np.sin(theta)
@@ -58,16 +60,29 @@ class RotationGenerator:
         """
         A method to generate a random general 3D rotation matrix.
 
-        A general 3D rotation matrix is a rotation consisting of roll, pitch,
-        and yaw angles about all three axes. It can be broken down into a matrix
-        product of rotations about x by roll angle gamma, about y by pitch angle
-        beta, and about z by yaw angle alpha.
+        A general 3D rotation matrix is a rotation consisting of roll,
+	pitch, and yaw angles about all three axes. It can be broken 
+	down into a matrix product of rotations about x by roll angle
+	gamma, about y by pitch angle beta, and about z by yaw angle 
+	alpha.
 
-        Return: A 3x3 matrix describing a general rotation transformation.
+        Return: A 3x3 matrix describing a general rotation 
+		transformation.
         """
-        rot_angles = np.random.uniform(low=0.0, high=self.angle_max, size=3)
-        alpha, beta, gamma = rot_angles[0], rot_angles[1], rot_angles[2]
+        rots = np.random.uniform(low=0.0, high=self.angle_max, size=3)
+        alpha, beta, gamma = rots[0], rots[1], rots[2]
 
-        return np.array([[np.cos(alpha)*np.cos(beta), np.cos(alpha)*np.sin(beta)*np.sin(gamma)-np.sin(alpha)*np.cos(gamma), np.cos(alpha)*np.sin(beta)*np.cos(gamma)+np.sin(alpha)*np.sin(gamma)],
-        [np.sin(alpha)*np.cos(beta), np.sin(alpha)*np.sin(beta)*np.sin(gamma)+np.cos(alpha)*np.cos(gamma), np.sin(alpha)*np.sin(beta)*np.cos(gamma)-np.cos(alpha)*np.sin(gamma)],
-        [-np.sin(beta), np.cos(beta)*np.sin(gamma), np.cos(beta)*np.cos(gamma)]])
+        return np.array([
+	    [
+		np.cos(alpha)*np.cos(beta),
+		np.cos(alpha)*np.sin(beta)*np.sin(gamma)-np.sin(alpha)*np.cos(gamma),
+		np.cos(alpha)*np.sin(beta)*np.cos(gamma)+np.sin(alpha)*np.sin(gamma)
+	    ], [
+		np.sin(alpha)*np.cos(beta),
+		np.sin(alpha)*np.sin(beta)*np.sin(gamma)+np.cos(alpha)*np.cos(gamma),
+		np.sin(alpha)*np.sin(beta)*np.cos(gamma)-np.cos(alpha)*np.sin(gamma)
+	    ], [
+		-np.sin(beta),
+		np.cos(beta)*np.sin(gamma),
+		np.cos(beta)*np.cos(gamma)
+	    ]])
