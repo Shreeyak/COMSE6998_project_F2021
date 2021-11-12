@@ -7,7 +7,7 @@ to angles (in radians) of rotation for roll, pitch, and yaw, all of
 which have 0 (inclusive) minima and user-specified maxima (inclusive).
 
 This is intended to create "small" rotations, so we recommend
-limiting the input angle maximum to π/4 radians.
+limiting the input angle maximum to π/4 (~0.785398) radians.
 """
 
 import numpy as np
