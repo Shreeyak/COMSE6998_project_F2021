@@ -20,20 +20,19 @@ class RotationGenerator:
         init function for the RotationGenerator class.
 
         Args:
-            angle_max: The maximum radian value for all randomly 
+            angle_max: The maximum radian value for all randomly
 	    	       generated angles of rotation.
         """
         self.angle_max = angle_max
 
-    def generate_simple_rotation() -> np.array:
+    def generate_simple_rotation(self) -> np.array:
         """
         A method to generate a random simple 3D rotation matrix.
 
         A simple 3D rotation is a rotation by one angle theta about one
-	axis, which here is also randomly chosen.
+        axis, which here is also randomly chosen.
 
-        Return: A 3x3 matrix describing a simple rotation 
-	transformation.
+        Return: A 3x3 matrix describing a simple rotation transformation.
         """
         theta = random.uniform(0, self.angle_max)
         cos_val, sin_val = np.cos(theta), np.sin(theta)
@@ -56,27 +55,25 @@ class RotationGenerator:
         return random.choice([r_x, r_y, r_z])
 
 
-    def generate_rotation() -> np.array:
+    def generate_rotation(self) -> np.array:
         """
         A method to generate a random general 3D rotation matrix.
 
         A general 3D rotation matrix is a rotation consisting of roll,
-	pitch, and yaw angles about all three axes. It can be broken 
-	down into a matrix product of rotations about x by roll angle
-	gamma, about y by pitch angle beta, and about z by yaw angle 
-	alpha.
+        pitch, and yaw angles about all three axes. It can be broken
+        down into a matrix product of rotations about x by roll angle
+        gamma, about y by pitch angle beta, and about z by yaw angle
+        alpha.
 
-        Return: A 3x3 matrix describing a general rotation 
-		transformation.
+        Return: A 3x3 matrix describing a general rotation transformation.
         """
         rots = np.random.uniform(low=0.0, high=self.angle_max, size=3)
         alpha, beta, gamma = rots[0], rots[1], rots[2]
-	sin_a, cos_a = np.sin(alpha), np.cos(alpha)
-	sin_b, cos_b = np.sin(beta), np.cos(beta)
-	sin_g, cos_g = np.sin(gamma), np.cos(gamma)
+        sin_a, cos_a = np.sin(alpha), np.cos(alpha)
+        sin_b, cos_b = np.sin(beta), np.cos(beta)
+        sin_g, cos_g = np.sin(gamma), np.cos(gamma)
 
-        return np.array([
-	    [cos_a*cos_b, cos_a*sin_b*sin_g-sin_a*cos_g, cos_a*sin_b*cos_g+sin_a*sin_g],
-	    [sin_a*cos_b, sin_a*sin_b*sin_g+cos_a*cos_g, sin_a*sin_b*cos_g-cos_a*sin_g],
-	    [-sin_b     , cos_b*sin_g		       , cos_b*cos_g		      ]
-	    ])
+        return np.array(
+        [[cos_a*cos_b, cos_a*sin_b*sin_g-sin_a*cos_g, cos_a*sin_b*cos_g+sin_a*sin_g],
+         [sin_a*cos_b, sin_a*sin_b*sin_g+cos_a*cos_g, sin_a*sin_b*cos_g-cos_a*sin_g],
+         [-sin_b     , cos_b*sin_g                  , cos_b*cos_g                  ]])
