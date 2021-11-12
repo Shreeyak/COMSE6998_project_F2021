@@ -71,18 +71,12 @@ class RotationGenerator:
         """
         rots = np.random.uniform(low=0.0, high=self.angle_max, size=3)
         alpha, beta, gamma = rots[0], rots[1], rots[2]
+	sin_a, cos_a = np.sin(alpha), np.cos(alpha)
+	sin_b, cos_b = np.sin(beta), np.cos(beta)
+	sin_g, cos_g = np.sin(gamma), np.cos(gamma)
 
         return np.array([
-	    [
-		np.cos(alpha)*np.cos(beta),
-		np.cos(alpha)*np.sin(beta)*np.sin(gamma)-np.sin(alpha)*np.cos(gamma),
-		np.cos(alpha)*np.sin(beta)*np.cos(gamma)+np.sin(alpha)*np.sin(gamma)
-	    ], [
-		np.sin(alpha)*np.cos(beta),
-		np.sin(alpha)*np.sin(beta)*np.sin(gamma)+np.cos(alpha)*np.cos(gamma),
-		np.sin(alpha)*np.sin(beta)*np.cos(gamma)-np.cos(alpha)*np.sin(gamma)
-	    ], [
-		-np.sin(beta),
-		np.cos(beta)*np.sin(gamma),
-		np.cos(beta)*np.cos(gamma)
-	    ]])
+	    [cos_a*cos_b, cos_a*sin_b*sin_g-sin_a*cos_g, cos_a*sin_b*cos_g+sin_a*sin_g],
+	    [sin_a*cos_b, sin_a*sin_b*sin_g+cos_a*cos_g, sin_a*sin_b*cos_g-cos_a*sin_g],
+	    [-sin_b     , cos_b*sin_g		       , cos_b*cos_g		      ]
+	    ])
