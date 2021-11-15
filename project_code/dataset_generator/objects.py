@@ -1,6 +1,6 @@
 import numpy as np
 import pybullet as p
-from Typing import List
+from typing import List
 
 
 def gen_obj_orientation(num_scene: int, num_obj: int) -> List[List[float]]:
@@ -61,7 +61,7 @@ def load_obj(
         cur_orientation = orientations[i]
         cur_id = p.loadURDF(
             fileName="./YCB_subsubset/" + obj_foldernames[i] + "/obj.urdf",
-            basePositon=positions[i],
+            basePosition=positions[i],
             baseOrientation=p.getQuaternionFromEuler(
                 [cur_orientation[0],
                  cur_orientation[1],

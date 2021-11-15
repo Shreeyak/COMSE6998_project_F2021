@@ -1,15 +1,12 @@
+from camera import Camera, save_obs
+import objects
+import pybullet_data
+import pybullet as p
+import rotation_generator
 import os
 from typing import List
 import sys
 sys.path.insert(1, '../')
-
-from rotation_generator import RotationGenerator
-
-import pybullet as p
-import pybullet_data
-
-import objects
-from camera import Camera, save_obs
 
 
 class DatasetGenerator(object):
@@ -25,10 +22,10 @@ class DatasetGenerator(object):
     """
 
     def __init__(self,
-        training_scenes: int,
-        obj_foldernames: List[str],
-        obj_positions: List[List[float]],
-        dataset_dir: str):
+                 training_scenes: int,
+                 obj_foldernames: List[str],
+                 obj_positions: List[List[float]],
+                 dataset_dir: str):
         """
         Initializes the DatasetGenerator class.
 
@@ -45,29 +42,24 @@ class DatasetGenerator(object):
                          to.
         """
         self.this_camera = Camera(
-            image_size = (240, 320),
-            near = 0.01,
-            far = 10.0,
-            fov_w = 69.40
+            image_size=(240, 320),
+            near=0.01,
+            far=10.0,
+            fov_w=69.40
         )
         self.training_scenes = training_scenes
         self.obj_foldernames = [fn for fn in obj_foldernames]
         self.obj_positions = obj_positions
         self.obj_orientations = objects.gen_obj_orientation(
-            num_scene = self.training_scenes,
-            num_obj = len(self.obj_foldernames)
+            num_scene=self.training_scenes,
+            num_obj=len(self.obj_foldernames)
         )
-        self.obj_ids = objects.load_obj(
-            self.obj_foldernames,
-            self.obj_positions,
-            self.obj_orientations
-        )
+        
         self.dataset_dir = dataset_dir
         if not os.path.exists(dataset_dir):
             os.makedirs(dataset_dir)
             os.makedirs(dataset_dir + "rgb/")
             os.makedirs(dataset_dir + "gt/")
-
 
     def generate_dataset(self):
         physics_client = p.connect(p.GUI)
@@ -76,6 +68,8 @@ class DatasetGenerator(object):
 
         # Load floor
         plane_id = p.loadURDF("plane.urdf")
+        obj_ids = objects.load_obj(self.obj_foldernames,self.obj_positions,self.obj_orientations)
+        
 
         print("Start generating the training set.")
         print(f'==> 1 / {self.training_scenes}')
@@ -103,12 +97,13 @@ class DatasetGenerator(object):
 
 def main():
     data_gen = DatasetGenerator(
-        training_scenes = 30,
-        obj_foldernames = ["011_banana"],
-        obj_positions = [[0.1, 0.1, 0.1]],
-        dataset_dir = "../dataset/train"
+        training_scenes=30,
+        obj_foldernames=["011_banana"],
+        obj_positions=[[0.0, 0.0, 0.0]],
+        dataset_dir="../dataset/train"
     )
     data_gen.generate_dataset()
+
 
 """
 TODO IN GEN_DATASET:

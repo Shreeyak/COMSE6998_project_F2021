@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 import pybullet as p
-
+from typing import List, Tuple
 import image
 
 
