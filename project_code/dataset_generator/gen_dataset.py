@@ -6,6 +6,39 @@ import pybullet_data
 import objects
 from camera import Camera, save_obs
 
+class DatasetGenerator():
+    """
+    A class which generates the dataset for our project. Connects to
+    pybullet and ____
+
+    # TODO: fill out this docstring a lot better
+    """
+
+
+    def __init__(self):
+	"""
+	Initializes the DatasetGenerator class.
+
+	Args: none
+	"""
+	pass
+
+
+    @staticmethod
+    def generate_dataset():
+	physics_client = p.connect(p.GUI)
+	p.setAdditionalSearchPath(pybullet_data.getDataPath())
+	p.setGravity(0, 0, -10)
+
+	# Set up camera
+	this_camera = Camera(
+		image_size = (240, 320),  # TODO: discuss this
+		near = 0.01,
+		far = 10.0, 
+		fov_w = 69.40 # TODO: discuss this
+	)
+
+
 
 def main():
     physics_client = p.connect(p.GUI)
