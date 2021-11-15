@@ -6,6 +6,7 @@ import pybullet_data
 import objects
 from camera import Camera, save_obs
 
+
 class DatasetGenerator():
     """
     A class which generates the dataset for our project. Connects to
@@ -13,7 +14,6 @@ class DatasetGenerator():
 
     # TODO: fill out this docstring a lot better
     """
-
 
     def __init__(self):
         """
@@ -31,10 +31,10 @@ class DatasetGenerator():
 
         # Set up camera
         this_camera = Camera(
-            image_size = (240, 320),
-            near = 0.01,
-            far = 10.0,
-            fov_w = 69.40
+            image_size=(240, 320),
+            near=0.01,
+            far=10.0,
+            fov_w=69.40
         )
         # Define number of training scenes
         training_scene = 30  # TODO: replace with actual value
@@ -54,8 +54,8 @@ class DatasetGenerator():
         num_obj = len(list_obj_foldername)
         list_obj_position = [[0.1, 0.1, 0.1]]
         list_obj_orientation = objects.gen_obj_orientation(
-            num_scene = training_scene,
-            num_obj = num_obj
+            num_scene=training_scene,
+            num_obj=num_obj
         )
         list_obj_id = obj.load_obj(
             list_obj_foldername,
@@ -73,7 +73,7 @@ class DatasetGenerator():
         print(f'==> 1 / {training_scene}')
         save_obs(
             dataset_dir,
-            my_camera,
+            this_camera,
             num_obs=num_observations,
             scene_id=0
         )
@@ -83,13 +83,13 @@ class DatasetGenerator():
                 list_obj_id,
                 list_obj_position,
                 list_obj_orientation,
-                scene_id = i
+                scene_id=i
             )
             save_obs(
                 dataset_dir,
-                my_camera,
+                this_camera,
                 num_obs=num_observations,
-                scene_id = i
+                scene_id=i
             )
 
         p.disconnect()
