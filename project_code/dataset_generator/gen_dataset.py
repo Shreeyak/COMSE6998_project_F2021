@@ -93,5 +93,5 @@ class DatasetGenerator():
 		    num_obs=num_observations,
 		    scene_id = i
 	    )
-	p.disconnect()
 
+	p.disconnect()
