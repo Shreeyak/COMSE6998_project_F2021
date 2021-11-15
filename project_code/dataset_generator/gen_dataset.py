@@ -20,7 +20,7 @@ class DatasetGenerator():
         training_scenes: int,
         num_observations: int,
         obj_foldernames: List[str],
-        obj_positions: List[List[int]],
+        obj_positions: List[List[float]],
         dataset_dir: str):
         """
         Initializes the DatasetGenerator class.
