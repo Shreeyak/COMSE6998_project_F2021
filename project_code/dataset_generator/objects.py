@@ -47,7 +47,7 @@ def load_obj(name, position, orientation):
         cur_orientation = orientation[i]
         cur_id = p.loadURDF(
             fileName="./YCB_subsubset/" + name[i] + "/obj.urdf",
-            basePosition=position[i],
+            basePositon=position[i],
             baseOrientation=p.getQuaternionFromEuler(
                 [cur_orientation[0],
                  cur_orientation[1],
