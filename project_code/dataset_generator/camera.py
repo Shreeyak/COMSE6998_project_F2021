@@ -8,20 +8,21 @@ import image
 
 class Camera(object):
     """
-    Class to define a camera.
-    Modified from Zhenjia Xu's camera setting.
+    Class to define a camera. Modified from Zhenjia Xu's camera setting.
     """
-    def __init__(self, image_size, near, far, fov_w):
+    def __init__(self,
+        image_size: Tuple[int],
+        near: float,
+        far: float,
+        fov_w: float):
         """
-        In:
-            image_size: tuple of (height, width), where the height and width are integer.
-            near: float, value of near plane.
-            far: float, value of far plane.
-            fov_w: float, field of view in width direction in degree.
-        Out:
-            None.
-        Purpose:
-            Create a camera from given parameters.
+        Creates a virtual camera from the given parameters.
+
+        Args:
+            image_size: (height, width) of the images our camera will take.
+            near: Value of the near plane.
+            far: Value of the far plane.
+            fov_w: Field of view in width direction in degrees.
         """
         super().__init__()
 
@@ -34,19 +35,20 @@ class Camera(object):
         self.fov_height = (math.atan((float(self.image_size[0]) / 2) / self.focal_length) * 2 / np.pi) * 180
         self.intrinsic_matrix, self.projection_matrix = self.compute_camera_matrix()
 
-    def compute_camera_matrix(self):
+
+    def compute_camera_matrix(self) -> Tuple[np.array, List[float]]:
         """
-        In:
-            None.
-        Out:
-            intrinsic_matrix: Numpy array [3, 3].
-            projection_matrix: a list of 16 floats, representing a 4x4 matrix.
-        Purpose:
-            Compute intrinsic and projection matrices from instance variables in Camera class.
+        Computes intrinsic and projection matrices from instance variables in
+        Camera class.
+
+        Returns:
+            intrinsic_matrix: 3x3 numpy array corresponding to the intrinsic
+                              camera matrix.
+            projection_matrix: A list of 16 floats, representing a 4x4
+                               projection matrix for the camera view.
         """
-        # TODO: compute camera intrinsic_matrix from camera parameters
         intrinsic_matrix = np.eye(3)
-        intrinsic_matrix = intrinsic_matrix.astype('float64') 
+        intrinsic_matrix = intrinsic_matrix.astype('float64')
         radF_y = ((np.pi * self.fov_height) / 180)
         radF_x = (np.pi * self.fov_width / 180)
         f_y = float(self.image_size[0])/(2.0*np.tan(radF_y/2.0))
@@ -56,35 +58,40 @@ class Camera(object):
         intrinsic_matrix[0][2] = float(self.image_size[1])/2.0
         intrinsic_matrix[1][2] = float(self.image_size[0])/2.0
         ar = float(self.image_size[1]/self.image_size[0])
-        projection_matrix = p.computeProjectionMatrixFOV(self.fov_width, ar, self.near , self.far)
+        projection_matrix = p.computeProjectionMatrixFOV(self.fov_width, ar, self.near, self.far)
         return intrinsic_matrix, projection_matrix
 
 
-def cam_view2pose(cam_view_matrix):
+def cam_view2pose(cam_view_matrix: List[float]) -> np.array:
     """
-    In:
-        cam_view_matrix: a list of 16 floats, representing a 4x4 matrix.
-    Out:
-        cam_pose_matrix: Numpy array [4, 4].
-    Purpose:
-        Convert camera view matrix to pose matrix.
+    Converts a camera view matrix to pose matrix.
+
+    Args:
+        cam_view_matrix: A list of 16 floats representing a 4x4 camera
+                         projection matrix.
+    Returns:
+        cam_pose_matrix: 4x4 numpy array corresponding to the 16 float list.
     """
     cam_pose_matrix = np.linalg.inv(np.array(cam_view_matrix).reshape(4, 4).T)
     cam_pose_matrix[:, 1:3] = -cam_pose_matrix[:, 1:3]
     return cam_pose_matrix
 
 
-def make_obs(camera, view_matrix):
+def make_obs(
+    camera: Camera,
+    view_matrix: List[float]) -> (np.array, np.array, np.array):
     """
-    In:
-        camera: Camera instance.
-        view_matrix: a list of 16 floats, representing a 4x4 matrix.
-    Out:
-        rgb_obs: Numpy array [Height, Width, 3].
-        depth_obs: Numpy array [Height, Width].
-        mask_obs: Numpy array [Height, Width].
-    Purpose:
-        Use a camera to make observation and return RGB, depth and instance level segmentation mask observations.
+    Uses a camera to make an observation and return RGB, depth, and instance
+    level segmentation mask observations.
+
+    Args:
+        camera: The Camera instance making the observations.
+        view_matrix: The camera's 4x4 view matrix (represented as a list of 16
+                     floats).
+    Returns:
+        rgb_obs: The RGB observation corresponding to the current scene.
+        depth_obs: Depth information corresponding to the current scene.
+        mask_obs: The current scene's mask.
     """
     obs = p.getCameraImage(
         width=camera.image_size[1],
@@ -110,34 +117,37 @@ def make_obs(camera, view_matrix):
         depth_obs = camera.far * camera.near / (camera.far - (camera.far - camera.near) * obs[3])
         mask_obs = obs[4]
 
-    mask_obs[mask_obs == -1] = 0  # label empty space as 0, the same as the plane
+    mask_obs[mask_obs == -1] = 0  # label empty space as 0 (plane)
     return rgb_obs, depth_obs, mask_obs
 
 
-def save_obs(dataset_dir, camera, num_obs, scene_id, is_valset=False):
+def save_obs(
+    dataset_dir: str,
+    camera: Camera,
+    scene_id: int,
+    trans_applied: str,
+    is_valset=False):
     """
-    In:
-        dataset_dir: string, the directory to save observations.
-        camera: Camera instance.
-        num_obs: int, number of observations to be made in current scene with the camera moving round a circle above the origin.
-        scene_id: int, indicating the scene to observe, used to (1) index files to be saved (2) change camera distance and pitch angle.
-    Out:
-        None.
-    Purpose:
-        Save RGB, depth, instance level segmentation mask as files.
-    """
-    for i in range(num_obs):
-        view_matrix = p.computeViewMatrixFromYawPitchRoll(
-            cameraTargetPosition=(0.0, 0.0, 0.0),
-            distance=0.7 - scene_id * 0.005,
-            yaw=i * (360 / num_obs),  # move round a circle orbit
-            pitch=-20 - scene_id * 0.5,
-            roll=0,
-            upAxisIndex=2,
-        )
-        rgb_obs, depth_obs, mask_obs = make_obs(camera, view_matrix)
-        rgb_name = dataset_dir + "rgb/" + str(i + scene_id * num_obs) + "_rgb.png"
-        image.write_rgb(rgb_obs.astype(np.uint8), rgb_name)
-        mask_name = dataset_dir + "gt/" + str(i + scene_id * num_obs) + "_gt.png"
-        image.write_mask(mask_obs, mask_name)
+    Saves RGB, depth, and instance level segmentation mask as files.
 
+    Args:
+        dataset_dir: The directory to which we save observations.
+        camera: The camera instance we're using.
+        scene_id: The scene we're observing, used to index files to be saved.
+        trans_applied: Whether or not the transformation matrix has already
+                       been applied. Should be "before" (before transformation)
+                       or "after" (after transformation).
+    """
+    view_matrix = p.computeViewMatrixFromYawPitchRoll(
+        cameraTargetPosition=(0.0, 0.0, 0.0),
+        distance = 0.7,
+        yaw = 0,
+        pitch = -25,
+        roll = 0,
+        upAxisIndex = 2
+    )
+    rbg_obs, depth_obs, mask_obs = make_obs(camera, view_matrix)
+    rgb_name = dataset_dir+"rgb/"+str(scene_id)+"_"+trans_applied+"_rgb.png"
+    image.write_rgb(rgb_obs.astype(np.uint8), rgb_name)
+    mask_name = dataset_dir+"gt/"+str(scene_id)+"_"+trans_applied+"_gt.png"
+    image.write_mask(mask_obs, mask_name)

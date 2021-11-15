@@ -1,53 +1,67 @@
 import numpy as np
 import pybullet as p
-import sys
-sys.path.insert(1, '../')
-
-from rotation_generator import RotationGenerator
+from Typing import List
 
 
-def gen_obj_orientation(num_scene, num_obj):
+def gen_obj_orientation(num_scene: int, num_obj: int) -> List[List[float]]:
     """
-    In:
-        num_scene: int, number of scenes.
-        num_obj: int, number of objects.
-    Out:
-        list_obj_orientation: a list of 3 floats,
-                              accumulating 3 rotations in radians, expressing the X,Y,Z Euler angles:
-                              the roll around the X, pitch around Y and yaw around the Z axis.
-    Purpose:
-        Randomly generate a list of orientation for each object in each scene, without duplication.
+    Generates a list of random unique orientations for each object in a scene.
+
+    Args:
+        num_scene: The number of scenes in the given sim.
+        num_obj: The number of objects in the given scene.
+    Returns:
+        obj_orientations: A list containing each object's orientation defined
+                          as a 3-vector of X, Y, and Z Euler angles in radians.
+                          X describes the roll angle, Y the pitch angle, and Z
+                          the yaw angle.
     """
-    list_obj_orientation = []
+    obj_orientations = []
     num_ori = num_scene * num_obj
     np.random.seed(42)
     list_roll = np.random.choice(360, num_ori, replace=False)
     list_pitch = np.random.choice(360, num_ori, replace=False)
     list_yaw = np.random.choice(360, num_ori, replace=False)
 
-    # degree to radius
+    # Degrees to radians
     list_roll = [x/180*np.pi for x in list_roll]
     list_pitch = [x / 180 * np.pi for x in list_pitch]
     list_yaw = [x / 180 * np.pi for x in list_yaw]
 
     for i in range(num_ori):
-        list_obj_orientation.append(
+        obj_orientations.append(
             [list_roll[i],
              list_pitch[i],
              list_yaw[i]]
         )
-    return list_obj_orientation
+    return obj_orientations
 
 
-def load_obj(name, position, orientation):
-    """Load objects."""
-    list_obj_id = []
-    num_obj = len(name)
+def load_obj(
+    obj_foldernames: List[str],
+    positions: List[List[float]],
+    orientations: List[List[float]]) -> List[int]:
+    """
+    Load objects into the scene.
+
+    Args:
+        obj_foldernames: Folder names for the objects to be loaded into the
+                         scene.
+        positions: The initial positions of each of the objects to be loaded
+                   into the scene.
+        orientations: The initial orientations of each of the objects to be
+                      loaded into the scene.
+    Returns:
+        obj_ids: The IDs of objects loaded. If all objects are loaded
+                 successfully, return is positive definite.
+    """
+    obj_ids = []
+    num_obj = len(obj_foldernames)
     for i in range(num_obj):
-        cur_orientation = orientation[i]
+        cur_orientation = orientations[i]
         cur_id = p.loadURDF(
-            fileName="./YCB_subsubset/" + name[i] + "/obj.urdf",
-            basePositon=position[i],
+            fileName="./YCB_subsubset/" + obj_foldernames[i] + "/obj.urdf",
+            basePositon=positions[i],
             baseOrientation=p.getQuaternionFromEuler(
                 [cur_orientation[0],
                  cur_orientation[1],
@@ -55,27 +69,41 @@ def load_obj(name, position, orientation):
             ),
             globalScaling=1,
         )
-        list_obj_id.append(cur_id)
+        obj_ids.append(cur_id)
     # Drop objects on the floor
     for tick in range(500):
         p.stepSimulation()
-    return list_obj_id
+    return obj_ids
 
 
-def reset_obj(list_obj_id, position, orientation, scene_id):
-    """Reset objects, applying random rotation matrix defined by rot_gen."""
-    rot_gen = RotationGenerator(0.7853)
-    rot_mat = rot_gen.generate_rotation()
-    rot_quat = np.quaternion.from_rotation_matrix(rot_mat)
-    num_obj = len(list_obj_id)
+def reset_obj(
+    obj_ids: List[int],
+    positions: List[List[float]],
+    orientations: List[List[float]],
+    scene_id: int) -> None:
+    """
+    Resets objects in the simulation.
+
+    Args:
+        obj_ids: A list of the IDs of objects present in the scene.
+        positions: A list of the existing objects' positions, each as 3-element
+                   vectors of Euclidean x, y, z coordinates.
+        orientations: A list of the existing objects' orientations.
+        scene_id: The ID for this scene.
+    """
+    num_obj = len(obj_ids)
     np.random.seed(scene_id)
     position_index = np.random.choice(5, 5, replace=False)
     for i in range(num_obj):
-        cur_orientation = orientation[scene_id * num_obj + i]
+        cur_orientation = orientations[scene_id * num_obj + i]
         p.resetBasePositionAndOrientation(
-            list_obj_id[i],
-            posObj=position[position_index[i]],
-            ornObj=rot_quat
+            obj_ids[i],
+            posObj=positions[position_index[i]],
+            ornObj=p.getQuaternionFromEuler(
+                [cur_orientation[0],
+                 cur_orientation[1],
+                 cur_orientation[2]]
+            )
         )
     # Drop objects on the floor
     for tick in range(500):
