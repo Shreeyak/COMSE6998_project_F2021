@@ -12,7 +12,7 @@ def main():
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -10)
 
-    # Setup camera
+    # VERIFIED: Setup camera
     my_camera = Camera(
         image_size=(240, 320),
         near=0.01,
@@ -20,25 +20,30 @@ def main():
         fov_w=69.40
     )
 
-    # For each scene, orientations of objects are guaranteed to be different, and camera distance and pitch can vary
+    # Do we want camera and dist and pitch to vary?: For each scene, orientations of objects are guaranteed to be different, and camera distance and pitch can vary
     training_scene = 30
 
-    # Number of observations to be made in each scene with the camera moving round a circle above the origin
+    # Do we want multiple obs?: Number of observations to be made in each scene with the camera moving round a circle above the origin
     num_observation = 10
 
-    # Load floor with ID 0
+    # VERIFIED: Load floor with ID 0
     plane_id = p.loadURDF("plane.urdf")
 
-    # Load objects with ID start from 1
+    # Reduces to one, want list of objects in total later: Load objects with ID start from 1
     list_obj_foldername = [
-        "004_sugar_box",
-        "005_tomato_soup_can",
-        "007_tuna_fish_can",
-        "011_banana",
-        "024_bowl",
+        # "004_sugar_box",
+        # "005_tomato_soup_can",
+        # "007_tuna_fish_can",
+        "011_banana"  # ,
+        # "024_bowl",
     ]
     num_obj = len(list_obj_foldername)
-    list_obj_position = [[-0.1, -0.1, 0.1], [-0.1, 0.1, 0.1], [0.1, -0.1, 0.1], [0.1, 0.1, 0.1], [0, 0, 0.1], ]
+
+    # just for banana
+    list_obj_position = [  # [-0.1, -0.1, 0.1], [-0.1, 0.1, 0.1],
+        #[0.1, -0.1, 0.1],
+        [0.1, 0.1, 0.1]  # , [0, 0, 0.1],
+    ]
     list_obj_orientation = objects.gen_obj_orientation(
         num_scene=training_scene,
         num_obj=num_obj
