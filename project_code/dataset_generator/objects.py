@@ -1,5 +1,9 @@
 import numpy as np
 import pybullet as p
+import sys
+sys.path.insert(1, '../')
+
+from rotation_generator import RotationGenerator
 
 
 def gen_obj_orientation(num_scene, num_obj):
@@ -59,7 +63,10 @@ def load_obj(name, position, orientation):
 
 
 def reset_obj(list_obj_id, position, orientation, scene_id):
-    """Reset objects."""
+    """Reset objects, applying random rotation matrix defined by rot_gen."""
+    rot_gen = RotationGenerator(0.7853)
+    rot_mat = rot_gen.generate_rotation()
+    rot_quat = np.quaternion.from_rotation_matrix(rot_mat)
     num_obj = len(list_obj_id)
     np.random.seed(scene_id)
     position_index = np.random.choice(5, 5, replace=False)
@@ -68,11 +75,7 @@ def reset_obj(list_obj_id, position, orientation, scene_id):
         p.resetBasePositionAndOrientation(
             list_obj_id[i],
             posObj=position[position_index[i]],
-            ornObj=p.getQuaternionFromEuler(
-                [cur_orientation[0],
-                 cur_orientation[1],
-                 cur_orientation[2]]
-            )
+            ornObj=rot_quat
         )
     # Drop objects on the floor
     for tick in range(500):
