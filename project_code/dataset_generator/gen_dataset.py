@@ -105,7 +105,7 @@ class DatasetGenerator(object):
             print(f'==> {i} / {self.training_scenes}')
             # Reset object(s) by dropping on the ground
             objects.reset_obj(
-                self.obj_ids,
+                obj_ids,
                 self.obj_positions,
                 self.obj_orientations,
                 scene_id = i
