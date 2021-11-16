@@ -126,7 +126,7 @@ def save_obs(
     camera: Camera,
     scene_id: int,
     trans_applied: str,
-    is_valset=False):
+    is_valset=False) -> Tuple[str, str]:
     """
     Saves RGB, depth, and instance level segmentation mask as files.
 
@@ -137,6 +137,9 @@ def save_obs(
         trans_applied: Whether or not the transformation matrix has already
                        been applied. Should be "before" (before transformation)
                        or "after" (after transformation).
+    Returns:
+        rgb_name: The name of the rgb file of the observation.
+        mask_name: The name of the object mask corresponding to the observation.
     """
     view_matrix = p.computeViewMatrixFromYawPitchRoll(
         cameraTargetPosition=(0.0, 0.0, 0.0),
@@ -151,3 +154,4 @@ def save_obs(
     image.write_rgb(rbg_obs.astype(np.uint8), rgb_name)
     mask_name = dataset_dir+"gt/"+str(scene_id)+"_"+trans_applied+"_gt.png"
     image.write_mask(mask_obs, mask_name)
+    return rgb_name, mask_name

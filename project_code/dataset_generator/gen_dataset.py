@@ -6,7 +6,7 @@ import sys
 sys.path.insert(1, './')
 from rotation_generator import RotationGenerator
 import os
-from typing import List
+from typing import List, Dict
 
 
 class DatasetGenerator(object):
@@ -61,7 +61,29 @@ class DatasetGenerator(object):
             os.makedirs(dataset_dir + "rgb/")
             os.makedirs(dataset_dir + "gt/")
 
-    def generate_dataset(self):
+    def generate_dataset(self)->Dict[int,Tuple(np.array,Dict[str,List[str]])]:
+        """
+        Generates the dataset of our project.
+
+        Returns:
+            training_pairs: An object which stores the training pairs of our
+                            training data. An observation constituted by an rgb
+                            image and a depth mask image is made before and
+                            after each random transformation is applied; the
+                            names of those observation filenames are recorded.
+                            The return object stores them in a dictionary
+                            whose keys are the scene number and whose values
+                            are tuples of the transformation matrix and
+                            associated before & after image pairs. One key-val
+                            pair, corresponding to the first scene, might look
+                            like
+                            {i:
+                                (np.array([1, 0, 0], [0, 1, 0], [0, 0, 1]),
+                                {'rgb': ["1_before_rgb.png", "1_after_rgb.png"],
+                                 'mask': ["1_before_gt.png", "1_after_gt.png"]}
+                                )
+                            }
+        """
         physics_client = p.connect(p.GUI)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -10)
@@ -78,15 +100,8 @@ class DatasetGenerator(object):
 
 
         print("Start generating the training set.")
-
-        """
-        TODO: control flow should be roughly
-
-        reset the object, save_observation, get the current position &
-        orientation, get a randomly generated transformation matrix, apply it
-        to current position, then save_observation again
-        """
-        for i in range(1, self.training_scenes+1):
+        training_pairs = {}
+        for i in range(0, self.training_scenes):
             print(f'==> {i} / {self.training_scenes}')
             # Reset object(s) by dropping on the ground
             objects.reset_obj(
@@ -95,22 +110,17 @@ class DatasetGenerator(object):
                 self.obj_orientations,
                 scene_id = i
             )
-
             # save an observation pre-transformation matrix
-            save_obs(self.dataset_dir, self.this_camera, i, "before")
-
+            rgb1,mask1 = save_obs(self.dataset_dir,self.this_camera,i,"before")
             # collect current position and orientation info
             # currently only works with one object (the banana)
             objPos, objOrn = p.getBasePositionAndOrientation(self.obj_ids[0])
-
             # generate a random 3D rotation matrix
             rot_mat = rot_gen.generate_rotation()
-
             # apply rotation matrix to object's position and orientation
             newPos = rot_mat@objPos
             curEul = p.getEulerFromQuaternion(objOrn)
             newOrn = p.getQuaternionFromEuler(rot_mat@curEul)
-
             # Reset the object's position with respect to new values
             # Currently only works for one object (the banana)
             p.resetBasePositionAndOrientation(
@@ -120,13 +130,14 @@ class DatasetGenerator(object):
             )
 
             # save an observation post-transformation matrix
-            save_obs(self.dataset_dir, self.this_camera, i, "after")
-
-            # TODO: save transformation matrix as label for this scene
-
-
+            rgb2,mask2 = save_obs(self.dataset_dir,self.this_camera,i,"after")
+            # Save transformation matrix as label for this scene
+            observations = {'rgb': [rgb1, rgb2],
+                            'mask': [mask1, mask2]}
+            training_pairs[i] = (rot_mat, observations)
 
         p.disconnect()
+        return training_pairs
 
 
 def main():
@@ -136,16 +147,7 @@ def main():
         obj_positions=[[0.0, 0.0, 0.0]],
         dataset_dir="../dataset/train"
     )
-    data_gen.generate_dataset()
-
-
-"""
-TODO IN GEN_DATASET:
-    include in the data reset_obj and save_obs loop, we need to get the
-    current orientation of the object, save an observation, then apply the
-    transformation matrix to the current orientation, save another observation,
-    and then go to next scene (save rotation as a label somehow)
-"""
+    training_pairs = data_gen.generate_dataset()
 
 
 if __name__ == '__main__':
