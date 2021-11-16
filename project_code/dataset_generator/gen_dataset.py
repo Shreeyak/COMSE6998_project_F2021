@@ -2,11 +2,11 @@ from camera import Camera, save_obs
 import objects
 import pybullet_data
 import pybullet as p
-import rotation_generator
+import sys
+sys.path.insert(1, './')
+from rotation_generator import RotationGenerator
 import os
 from typing import List
-import sys
-sys.path.insert(1, '../')
 
 
 class DatasetGenerator(object):
@@ -54,7 +54,7 @@ class DatasetGenerator(object):
             num_scene=self.training_scenes,
             num_obj=len(self.obj_foldernames)
         )
-        
+
         self.dataset_dir = dataset_dir
         if not os.path.exists(dataset_dir):
             os.makedirs(dataset_dir)
@@ -65,15 +65,19 @@ class DatasetGenerator(object):
         physics_client = p.connect(p.GUI)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -10)
+        rot_gen = RotationGenerator(0.7853)
 
         # Load floor
         plane_id = p.loadURDF("plane.urdf")
-        obj_ids = objects.load_obj(self.obj_foldernames,self.obj_positions,self.obj_orientations)
-        
+
+        # Load objects
+        obj_ids = objects.load_obj(
+            self.obj_foldernames,
+            self.obj_positions,
+            self.obj_orientations)
+
 
         print("Start generating the training set.")
-        print(f'==> 1 / {self.training_scenes}')
-        save_obs(self.dataset_dir, self.this_camera, scene_id=0)
 
         """
         TODO: control flow should be roughly
@@ -82,15 +86,45 @@ class DatasetGenerator(object):
         orientation, get a randomly generated transformation matrix, apply it
         to current position, then save_observation again
         """
-        for i in range(1, self.training_scenes):
-            print(f'==> {i+1} / {self.training_scenes}')
+        for i in range(1, self.training_scenes+1):
+            print(f'==> {i} / {self.training_scenes}')
+            # Reset object(s) by dropping on the ground
             objects.reset_obj(
                 self.obj_ids,
                 self.obj_positions,
                 self.obj_orientations,
-                scene_id=i
+                scene_id = i
             )
-            save_obs(self.dataset_dir, self.this_camera, scene_id=i)
+
+            # save an observation pre-transformation matrix
+            save_obs(self.dataset_dir, self.this_camera, i, "before")
+
+            # collect current position and orientation info
+            # currently only works with one object (the banana)
+            objPos, objOrn = p.getBasePositionAndOrientation(self.obj_ids[0])
+
+            # generate a random 3D rotation matrix
+            rot_mat = rot_gen.generate_rotation()
+
+            # apply rotation matrix to object's position and orientation
+            newPos = rot_mat@objPos
+            curEul = p.getEulerFromQuaternion(objOrn)
+            newOrn = p.getQuaternionFromEuler(rot_mat@curEul)
+
+            # Reset the object's position with respect to new values
+            # Currently only works for one object (the banana)
+            p.resetBasePositionAndOrientation(
+                self.obj_ids[0],
+                posObj=newPos,
+                ornObj=newOrn
+            )
+
+            # save an observation post-transformation matrix
+            save_obs(self.dataset_dir, self.this_camera, i, "after")
+
+            # TODO: save transformation matrix as label for this scene
+
+
 
         p.disconnect()
 
