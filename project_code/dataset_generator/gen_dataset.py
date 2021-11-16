@@ -6,7 +6,8 @@ import sys
 sys.path.insert(1, './')
 from rotation_generator import RotationGenerator
 import os
-from typing import List, Dict
+from typing import List, Dict, Tuple
+import numpy as np
 
 
 class DatasetGenerator(object):
