@@ -59,8 +59,8 @@ class DatasetGenerator(object):
         self.dataset_dir = dataset_dir
         if not os.path.exists(dataset_dir):
             os.makedirs(dataset_dir)
-            os.makedirs(dataset_dir + "rgb/")
-            os.makedirs(dataset_dir + "gt/")
+            os.makedirs(dataset_dir + "/rgb/")
+            os.makedirs(dataset_dir + "/gt/")
 
     def generate_dataset(self)->Dict[int,Tuple[np.array,Dict[str,List[str]]]]:
         """
@@ -85,13 +85,13 @@ class DatasetGenerator(object):
                                 )
                             }
         """
-        physics_client = p.connect(p.GUI)
+        p.connect(p.GUI)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -10)
         rot_gen = RotationGenerator(0.7853)
 
         # Load floor
-        plane_id = p.loadURDF("plane.urdf")
+        p.loadURDF("plane.urdf")
 
         # Load objects
         obj_ids = objects.load_obj(
@@ -115,7 +115,7 @@ class DatasetGenerator(object):
             rgb1,mask1 = save_obs(self.dataset_dir,self.this_camera,i,"before")
             # collect current position and orientation info
             # currently only works with one object (the banana)
-            objPos, objOrn = p.getBasePositionAndOrientation(self.obj_ids[0])
+            objPos, objOrn = p.getBasePositionAndOrientation(obj_ids[0])
             # generate a random 3D rotation matrix
             rot_mat = rot_gen.generate_rotation()
             # apply rotation matrix to object's position and orientation
@@ -123,9 +123,8 @@ class DatasetGenerator(object):
             curEul = p.getEulerFromQuaternion(objOrn)
             newOrn = p.getQuaternionFromEuler(rot_mat@curEul)
             # Reset the object's position with respect to new values
-            # Currently only works for one object (the banana)
             p.resetBasePositionAndOrientation(
-                self.obj_ids[0],
+                obj_ids[0], # currently only works for the banana
                 posObj=newPos,
                 ornObj=newOrn
             )

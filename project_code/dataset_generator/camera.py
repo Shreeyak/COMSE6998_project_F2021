@@ -150,8 +150,10 @@ def save_obs(
         upAxisIndex = 2
     )
     rbg_obs, depth_obs, mask_obs = make_obs(camera, view_matrix)
-    rgb_name = dataset_dir+"rgb/"+str(scene_id)+"_"+trans_applied+"_rgb.png"
+    rgb_name = dataset_dir+"/rgb/"+str(scene_id)+"_"+trans_applied+"_rgb.png"
     image.write_rgb(rbg_obs.astype(np.uint8), rgb_name)
-    mask_name = dataset_dir+"gt/"+str(scene_id)+"_"+trans_applied+"_gt.png"
+    print(rgb_name) # TESTING
+    mask_name = dataset_dir+"/gt/"+str(scene_id)+"_"+trans_applied+"_gt.png"
     image.write_mask(mask_obs, mask_name)
+    print(mask_name) # TESTING
     return rgb_name, mask_name

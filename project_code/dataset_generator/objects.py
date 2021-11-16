@@ -93,7 +93,8 @@ def reset_obj(
     """
     num_obj = len(obj_ids)
     np.random.seed(scene_id)
-    position_index = np.random.choice(5, 5, replace=False)
+    # Currently only one object (to fix, choice(5,5,replace=False))
+    position_index = np.random.choice(1, 5, replace=True)
     for i in range(num_obj):
         cur_orientation = orientations[scene_id * num_obj + i]
         p.resetBasePositionAndOrientation(
