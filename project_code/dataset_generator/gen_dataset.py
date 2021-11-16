@@ -61,7 +61,7 @@ class DatasetGenerator(object):
             os.makedirs(dataset_dir + "rgb/")
             os.makedirs(dataset_dir + "gt/")
 
-    def generate_dataset(self)->Dict[int,Tuple(np.array,Dict[str,List[str]])]:
+    def generate_dataset(self)->Dict[int,Tuple[np.array,Dict[str,List[str]]]]:
         """
         Generates the dataset of our project.
 
