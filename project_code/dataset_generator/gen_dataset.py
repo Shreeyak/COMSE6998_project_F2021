@@ -103,7 +103,7 @@ class DatasetGenerator(object):
         print("Start generating the training set.")
         training_pairs = {}
         for i in range(0, self.training_scenes):
-            print(f'==> {i} / {self.training_scenes}')
+            print(f'==> {i+1} / {self.training_scenes}')
             # Reset object(s) by dropping on the ground
             objects.reset_obj(
                 obj_ids,
@@ -116,10 +116,15 @@ class DatasetGenerator(object):
             # collect current position and orientation info
             # currently only works with one object (the banana)
             objPos, objOrn = p.getBasePositionAndOrientation(obj_ids[0])
-            # generate a random 3D rotation matrix
-            rot_mat = rot_gen.generate_rotation()
+            # generate a random 3D rotation quaternion
+            rot_mat, rot_quat = rot_gen.generate_rotation()
+            
             # apply rotation matrix to object's position and orientation
             newPos = rot_mat@objPos
+            # Prevent the object's base from rotating to below the xy-plane
+            while newPos[2] < 0:
+                rot_mat, rot_quat = rot_gen.generate_rotation()
+                newPos = rot_mat@objPos
             curEul = p.getEulerFromQuaternion(objOrn)
             newOrn = p.getQuaternionFromEuler(rot_mat@curEul)
             # Reset the object's position with respect to new values
@@ -131,10 +136,10 @@ class DatasetGenerator(object):
 
             # save an observation post-transformation matrix
             rgb2,mask2 = save_obs(self.dataset_dir,self.this_camera,i,"after")
-            # Save transformation matrix as label for this scene
+            # save transformation matrix as label for this scene
             observations = {'rgb': [rgb1, rgb2],
                             'mask': [mask1, mask2]}
-            training_pairs[i] = (rot_mat, observations)
+            training_pairs[i] = (rot_quat, observations)
 
         p.disconnect()
         return training_pairs
