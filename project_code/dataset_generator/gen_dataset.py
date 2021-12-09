@@ -48,12 +48,13 @@ class DatasetGenerator(object):
             far=10.0,
             fov_w=69.40
         )
+        """ Training scenes from init, how many pictures to take"""
         self.training_scenes = training_scenes
         self.obj_foldernames = [fn for fn in obj_foldernames]
         self.obj_positions = obj_positions
         self.obj_orientations = objects.gen_obj_orientation(
             num_scene=self.training_scenes,
-            num_obj=len(self.obj_foldernames)
+            num_obj=1
         )
 
         self.dataset_dir = dataset_dir
@@ -93,53 +94,76 @@ class DatasetGenerator(object):
         # Load floor
         p.loadURDF("plane.urdf")
 
-        # Load objects
-        obj_ids = objects.load_obj(
-            self.obj_foldernames,
-            self.obj_positions,
-            self.obj_orientations)
-
-
-        print("Start generating the training set.")
+        #process each object from the list
+            #load the object and orientation
+                #drop the object to the plane
+        current_file_num = 0
         training_pairs = {}
-        for i in range(0, self.training_scenes):
-            print(f'==> {i+1} / {self.training_scenes}')
-            # Reset object(s) by dropping on the ground
-            objects.reset_obj(
-                obj_ids,
-                self.obj_positions,
-                self.obj_orientations,
-                scene_id = i
-            )
-            # save an observation pre-transformation matrix
-            rgb1,mask1 = save_obs(self.dataset_dir,self.this_camera,i,"before")
-            # collect current position and orientation info
-            # currently only works with one object (the banana)
-            objPos, objOrn = p.getBasePositionAndOrientation(obj_ids[0])
-            # generate a random 3D rotation quaternion
-            rot_mat, rot_quat = rot_gen.generate_rotation()
+        print("Start generating the training set.")
+         
+        for j in range(0,len(self.obj_foldernames)):
             
-            # apply rotation matrix to object's position and orientation
-            newPos = rot_mat@objPos
-            # Prevent the object's base from rotating to below the xy-plane
-            while newPos[2] < 0:
-                rot_mat, rot_quat = rot_gen.generate_rotation()
-                newPos = rot_mat@objPos
-            curEul = p.getEulerFromQuaternion(objOrn)
-            newOrn = p.getQuaternionFromEuler(rot_mat@curEul)
-            # Reset the object's position with respect to new values
-            p.resetBasePositionAndOrientation(
-                obj_ids[0], # currently only works for the banana
-                posObj=newPos,
-                ornObj=newOrn
+            #for each object folder in the list, generate traning scenes
+            current_obj = [self.obj_foldernames[j]]
+            
+            #get new orientations
+            self.obj_orientations = objects.gen_obj_orientation(
+                num_scene=self.training_scenes,
+                num_obj=1
             )
+            
+            # Load current object
+            obj_ids = objects.load_obj(
+                current_obj,
+                self.obj_positions,
+                self.obj_orientations)
 
-            # save an observation post-transformation matrix
-            rgb2,mask2 = save_obs(self.dataset_dir,self.this_camera,i,"after")
-            # save transformation matrix as label for this scene
-            observations = {'rgb': [rgb1, rgb2],
-                            'mask': [mask1, mask2]}
-            training_pairs[i] = (rot_quat, observations)
+            for i in range(0, self.training_scenes):
+                print(f'==> {i+1} / {self.training_scenes}')
+                # Reset object(s) by dropping on the ground
+                objects.reset_obj(
+                    obj_ids,
+                    self.obj_positions,
+                    self.obj_orientations,
+                    scene_id =  i
+                )
+                # save an observation pre-transformation matrix
+                rgb1,mask1 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"before")
+                
+                # collect current position and orientation info
+                # currently only works with one object (the banana)
+                objPos, objOrn = p.getBasePositionAndOrientation(obj_ids[0])
+                
+                # generate a random 3D rotation quaternion
+                rot_mat, rot_quat = rot_gen.generate_rotation()
+                
+                # apply rotation matrix to object's position and orientation
+                newPos = rot_mat@objPos
+                # Prevent the object's base from rotating to below the xy-plane
+                while newPos[2] < 0:
+                    rot_mat, rot_quat = rot_gen.generate_rotation()
+                    newPos = rot_mat@objPos
+                curEul = p.getEulerFromQuaternion(objOrn)
+                newOrn = p.getQuaternionFromEuler(rot_mat@curEul)
+                
+                # Reset the object's position with respect to new values
+                p.resetBasePositionAndOrientation(
+                    obj_ids[0], # currently only works for the banana
+                    posObj=newPos,
+                    ornObj=newOrn
+                )
+    
+                # save an observation post-transformation matrix
+                rgb2,mask2 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"after")
+                
+                # save transformation matrix as label for this scene
+                observations = {'rgb': [rgb1, rgb2],
+                                'mask': [mask1, mask2]}
+                training_pairs[i+current_file_num] = (rot_quat, observations)
+                
+            current_file_num+=60
+            
+            p.removeBody(obj_ids[0])
 
         p.disconnect()
         return training_pairs
@@ -147,12 +171,45 @@ class DatasetGenerator(object):
 
 def main():
     data_gen = DatasetGenerator(
-        training_scenes=30,
-        obj_foldernames=["011_banana"],
+        training_scenes=60,
+        obj_foldernames=["004_sugar_box","005_tomato_soup_can","007_tuna_fish_can","011_banana","024_bowl"],
         obj_positions=[[0.0, 0.0, 0.0]],
-        dataset_dir="../dataset/train"
+        dataset_dir="../dataset/train1"
     )
-    training_pairs = data_gen.generate_dataset()
+    training_pairs1 = data_gen.generate_dataset()
+    
+    # data_gen = DatasetGenerator(
+    #     training_scenes=60,
+    #     obj_foldernames=["005_tomato_soup_can"],
+    #     obj_positions=[[0.0, 0.0, 0.0]],
+    #     dataset_dir="../dataset/train2"
+    # )
+    # training_pairs2 = data_gen.generate_dataset()
+   
+    # data_gen = DatasetGenerator(
+    #     training_scenes=60,
+    #     obj_foldernames=["007_tuna_fish_can"],
+    #     obj_positions=[[0.0, 0.0, 0.0]],
+    #     dataset_dir="../dataset/train3"
+    # )
+    # training_pairs3 = data_gen.generate_dataset()
+    
+    # data_gen = DatasetGenerator(
+    #     training_scenes=60,
+    #     obj_foldernames=["011_banana"],
+    #     obj_positions=[[0.0, 0.0, 0.0]],
+    #     dataset_dir="../dataset/train4"
+    # )
+    # training_pairs4 = data_gen.generate_dataset()
+    
+    # data_gen = DatasetGenerator(
+    #     training_scenes=60,
+    #     obj_foldernames=["024_bowl"],
+    #     obj_positions=[[0.0, 0.0, 0.0]],
+    #     dataset_dir="../dataset/train5"
+    # )
+    # training_pairs5 = data_gen.generate_dataset()
+    
 
 
 if __name__ == '__main__':

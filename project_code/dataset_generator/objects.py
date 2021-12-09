@@ -70,7 +70,8 @@ def load_obj(
             globalScaling=1,
         )
         obj_ids.append(cur_id)
-    # Drop objects on the floor
+    
+   # Drop objects on the floor
     for tick in range(500):
         p.stepSimulation()
     return obj_ids
