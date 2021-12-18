@@ -16,7 +16,7 @@ def iou(prediction, target):
     """
     In:
         prediction: Tensor [batchsize, rotmatrix ], predicted rotation
-        target: Tensor [batchsize, height, width], ground truth rotation.
+        target: Tensor [batchsize,rotmatix], ground truth rotation.
     Out:
         batch_ious: a list of floats, storing IoU on each batch.
     Purpose:
@@ -24,20 +24,20 @@ def iou(prediction, target):
     """
     #_, pred = torch.max(prediction, dim=1)
     batch_num = prediction.shape[0]
-    class_num = prediction.shape[1]
+    pred = prediction.detach().numpy()
+    lbl = target.detach().numpy()
+    dist_list = []
     batch_ious = list()
     for batch_id in range(batch_num):
-        class_ious = list()
-        for class_id in range(1, class_num):  # class 0 is background
-            mask_pred = (pred[batch_id] == class_id).int()
-            mask_target = (target[batch_id] == class_id).int()
-            if mask_target.sum() == 0: # skip the occluded object
-                continue
-            intersection = (mask_pred * mask_target).sum()
-            union = (mask_pred + mask_target).sum() - intersection
-            class_ious.append(float(intersection) / float(union))
-        batch_ious.append(np.mean(class_ious))
-    return batch_ious
+        pred_single = np.array(pred[batch_id].flatten().reshape(3,3))
+        lbl_single = np.array(lbl[batch_id].flatten().reshape(3,3))
+        pred_single = torch.from_numpy(pred_single).unsqueeze(dim=0)
+        lbl_single = torch.from_numpy(lbl_single).unsqueeze(dim=0)
+        dist = geodesic_dist(pred_single, lbl_single)  # Input Shape: (1, 3, 3)
+        dist_list.append(dist.item())
+        
+   
+    return dist
 
 
 def adjoint(A, E, f):
@@ -218,7 +218,7 @@ def train(model, device, train_loader, criterion, optimizer):
         # compute average loss of the batch using criterion()
         loss = criterion(outputs, labels)
         #compute mIoU of the batch using iou()
-        #mIoU = iou(outputs,labels)
+        mIoU = iou(outputs,labels)
         #store loss and mIoU of the batch for computing statistics
         
         #train_iou += sum(mIoU)/len(inputs)

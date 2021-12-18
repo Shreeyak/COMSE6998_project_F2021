@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 
 class RotationNet(nn.Module):
@@ -13,19 +14,19 @@ class RotationNet(nn.Module):
         self.layer3 = nn.Linear(2*16*16,8*8)
         self.layer4 = nn.Linear(8*8,4*4)
         self.layer5 = nn.Linear(4*4,9)
-       
+        self.model=nn.Sequential(self.layer1, self.layer2, self.layer3, self.layer4, self.layer5)
     def forward(self, x):
         """
         In:
             x: Tensor [batchsize, channel, height, width], channel=8
         Out:
-            output: Tensor [9]
+            output: Tensor [batchsize, 9]
         """
-        model=nn.Sequential(self.layer1, self.layer2, self.layer3, self.layer4, self.layer5)
-        output=model(x)
-        
-        #convert to valid rotation matrix
-  
+       
+        output=self.model(x) 
+        output = output.reshape(-1,3,3)
+        output,r = torch.linalg.qr(output)        
+       
         return output
 
 
