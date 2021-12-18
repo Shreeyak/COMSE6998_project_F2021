@@ -156,4 +156,8 @@ def save_obs(
     mask_name = dataset_dir+"/gt/"+str(scene_id)+"_"+trans_applied+"_gt.png"
     image.write_mask(mask_obs, mask_name)
     print(mask_name) # TESTING
-    return rgb_name, mask_name
+    depth_name = dataset_dir+"/depth/"+str(scene_id)+"_"+trans_applied+"_depth.png"
+    image.write_depth(depth_obs.astype(np.float),depth_name)
+    print(depth_name) # TESTING
+    
+    return rgb_name, mask_name, depth_name

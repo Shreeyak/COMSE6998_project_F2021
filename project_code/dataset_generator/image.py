@@ -63,7 +63,7 @@ def write_depth(depth_image, file_path):
         Write a depth image (input in meters) to a 16-bit png, where depth is stored in mm.
     """
     # convert from depth in meters to millimeters
-    depth_image = depth_image * 1000.
+    depth_image = depth_image * 1000.0
 
     depth_image = depth_image.astype(np.uint16)
     cv2.imwrite(file_path, depth_image)

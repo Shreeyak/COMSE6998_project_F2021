@@ -6,9 +6,9 @@ import torch
 from torch.utils.data import DataLoader
 
 import image
-from dataset import RGBDataset
-from model import MiniUNet
-from segmentation_helper import check_dataset, check_dataloader, show_mask
+from rotation_dataset import RotationDataset
+from rotation_model import RotationNet
+#from segmentation_helper import check_dataset, check_dataloader, show_mask
 
 
 def iou(prediction, target):
@@ -151,17 +151,21 @@ def train(model, device, train_loader, criterion, optimizer):
          # get the inputs; data is a list of [inputs, labels]
         inputs = data.get('input')
         labels = data.get('target')
+        print(labels.dtype)
         
         # forward + backward + optimize (feed a batch of input into the model to get the output)
+        btchsize = inputs.shape[0]
+        inputs = inputs.reshape(btchsize,-1)
         outputs = model(inputs)
+        print(outputs.dtype)
         # compute average loss of the batch using criterion()
         loss = criterion(outputs, labels)
         #compute mIoU of the batch using iou()
-        mIoU = iou(outputs,labels)
+        #mIoU = iou(outputs,labels)
         #store loss and mIoU of the batch for computing statistics
         
-        train_iou += sum(mIoU)/len(inputs)
-        train_loss += loss.item()*len(inputs) #avg over a batch so times batch size gives total loss per batch
+        #train_iou += sum(mIoU)/len(inputs)
+        train_loss += loss.item() #avg over a batch so times batch size gives total loss per batch
         # zero the parameter gradients
         optimizer.zero_grad()
         #compute the gradients using loss.backward()
@@ -169,8 +173,10 @@ def train(model, device, train_loader, criterion, optimizer):
         #updates the parameters of the model using optimizer.step()
         optimizer.step()
     #compute the average loss and mIoU of the dataset to return  
-    train_iou = train_iou/batches #divide by number of samples
+    #train_iou = train_iou/batches #divide by number of samples
     train_loss = train_loss/300 # by dataset size (size 300)
+    
+    train_iou = 0
     
     return train_loss, train_iou
 
@@ -195,11 +201,11 @@ def val(model, device, val_loader, criterion):
             loss = criterion(outputs, labels)
            
             #compute mIoU of the batch using iou()
-            mIoU = iou(outputs,labels)
+            #mIoU = iou(outputs,labels)
             
             #store loss and mIoU of the batch for computing statistics
-            val_iou += sum(mIoU)/len(inputs)
-            val_loss += loss.item()*len(inputs)
+            #val_iou += sum(mIoU)/len(inputs)
+            val_loss += loss.item()
       
     #compute the average loss and mIoU of the dataset to return  
     val_iou = val_iou/batches
@@ -214,31 +220,31 @@ def main():
 
     # Define directories
     root_dir = './dataset/'
-    train_dir = root_dir + 'train/'
-    val_dir = root_dir + 'val/'
-    test_dir = root_dir + 'test/'
+    train_dir = root_dir + 'train1/'
+    #val_dir = root_dir + 'val/'
+    #test_dir = root_dir + 'test/'
 
     #Create Datasets.
-    train_dataset = RGBDataset(train_dir, True )
-    check_dataset(train_dataset)
-    val_dataset = RGBDataset(val_dir, True )
-    check_dataset(val_dataset)
-    test_dataset = RGBDataset(test_dir, False )
-    check_dataset(test_dataset)
+    train_dataset = RotationDataset(train_dir, True )
+    #check_dataset(train_dataset)
+    #val_dataset = RotationDataset(val_dir, True )
+    #check_dataset(val_dataset)
+    #test_dataset = RotationDataset(test_dir, False )
+    #check_dataset(test_dataset)
 
     #Prepare Dataloaders
     train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True, num_workers=0)
-    check_dataloader(train_loader)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=0)
-    check_dataloader(val_loader)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
-    check_dataloader(test_loader)
+    #check_dataloader(train_loader)
+    #val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=0)
+    #check_dataloader(val_loader)
+    #test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=0)
+    #check_dataloader(test_loader)
 
     # Prepare model
-    model = MiniUNet()
+    model = RotationNet()
 
     # Define criterion and optimizer
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.MSELoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9) #best was .001
 
     # Train and validate the model
@@ -248,23 +254,23 @@ def main():
     while epoch <= max_epochs:
         print('Epoch (', epoch, '/', max_epochs, ')')
         train_loss, train_miou = train(model, device, train_loader, criterion, optimizer)
-        val_loss, val_miou = val(model, device, val_loader, criterion)
+        #val_loss, val_miou = val(model, device, val_loader, criterion)
         train_loss_list.append(train_loss)
         train_miou_list.append(train_miou)
-        val_loss_list.append(val_loss)
-        val_miou_list.append(val_miou)
+       # val_loss_list.append(val_loss)
+        #val_miou_list.append(val_miou)
         print('Train loss & mIoU: %0.2f %0.2f' % (train_loss, train_miou))
-        print('Validation loss & mIoU: %0.2f %0.2f' % (val_loss, val_miou))
+        #print('Validation loss & mIoU: %0.2f %0.2f' % (val_loss, val_miou))
         print('---------------------------------')
-        if val_miou > best_miou:
-            best_miou = val_miou
-            save_chkpt(model, epoch, val_miou)
+        #if val_miou > best_miou:
+        #    best_miou = val_miou
+        #    save_chkpt(model, epoch, val_miou)
         epoch += 1
 
     # Load the best checkpoint, use save_prediction() on the validation set and test set
     model, epoch, best_miou = load_chkpt(model, 'checkpoint.pth.tar')
-    save_prediction(model, device, val_loader, val_dir)
-    save_prediction(model, device, test_loader, test_dir)
+    #save_prediction(model, device, val_loader, val_dir)
+    #save_prediction(model, device, test_loader, test_dir)
     save_learning_curve(train_loss_list, train_miou_list, val_loss_list, val_miou_list)
 
 

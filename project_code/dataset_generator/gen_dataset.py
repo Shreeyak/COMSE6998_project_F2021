@@ -8,6 +8,7 @@ from rotation_generator import RotationGenerator
 import os
 from typing import List, Dict, Tuple
 import numpy as np
+import re
 
 
 class DatasetGenerator(object):
@@ -62,6 +63,17 @@ class DatasetGenerator(object):
             os.makedirs(dataset_dir)
             os.makedirs(dataset_dir + "/rgb/")
             os.makedirs(dataset_dir + "/gt/")
+            os.makedirs(dataset_dir + "/depth/")
+            os.makedirs(dataset_dir + "/rotations/")
+            
+        self.rot_file = dataset_dir+"/rotations/rotations.csv"
+       
+        f = open(self.rot_file, 'w') 
+       
+        #if os.path.exists(self.rot_file):
+           # os.remove(self.rot_file)
+            
+        
 
     def generate_dataset(self)->Dict[int,Tuple[np.array,Dict[str,List[str]]]]:
         """
@@ -88,15 +100,15 @@ class DatasetGenerator(object):
         """
         p.connect(p.GUI)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
+        #dont need gravity, can spawn half a meter
         p.setGravity(0, 0, -10)
         rot_gen = RotationGenerator(0.7853)
 
         # Load floor
         p.loadURDF("plane.urdf")
-
-        #process each object from the list
-            #load the object and orientation
-                #drop the object to the plane
+        
+        f = open(self.rot_file, 'a')
+            
         current_file_num = 0
         training_pairs = {}
         print("Start generating the training set.")
@@ -128,7 +140,7 @@ class DatasetGenerator(object):
                     scene_id =  i
                 )
                 # save an observation pre-transformation matrix
-                rgb1,mask1 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"before")
+                rgb1,mask1,depth1 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"before")
                 
                 # collect current position and orientation info
                 # currently only works with one object (the banana)
@@ -146,6 +158,15 @@ class DatasetGenerator(object):
                 curEul = p.getEulerFromQuaternion(objOrn)
                 newOrn = p.getQuaternionFromEuler(rot_mat@curEul)
                 
+                #Save rot_matrix after making it flat
+                rot_flat = str(rot_mat.flatten())
+                rot_clean_str = " "
+                rot_clean_str = rot_clean_str.join(rot_flat.split())
+                rot_clean_str = rot_clean_str[2:-1]
+                #ISSUE: Brackets included and missing trailing space
+                f.write(rot_clean_str)
+                f.write('\n')
+                
                 # Reset the object's position with respect to new values
                 p.resetBasePositionAndOrientation(
                     obj_ids[0], # currently only works for the banana
@@ -154,7 +175,7 @@ class DatasetGenerator(object):
                 )
     
                 # save an observation post-transformation matrix
-                rgb2,mask2 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"after")
+                rgb2,mask2,depth2 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"after")
                 
                 # save transformation matrix as label for this scene
                 observations = {'rgb': [rgb1, rgb2],
@@ -166,6 +187,7 @@ class DatasetGenerator(object):
             p.removeBody(obj_ids[0])
 
         p.disconnect()
+        f.close()
         return training_pairs
 
 
@@ -178,39 +200,7 @@ def main():
     )
     training_pairs1 = data_gen.generate_dataset()
     
-    # data_gen = DatasetGenerator(
-    #     training_scenes=60,
-    #     obj_foldernames=["005_tomato_soup_can"],
-    #     obj_positions=[[0.0, 0.0, 0.0]],
-    #     dataset_dir="../dataset/train2"
-    # )
-    # training_pairs2 = data_gen.generate_dataset()
-   
-    # data_gen = DatasetGenerator(
-    #     training_scenes=60,
-    #     obj_foldernames=["007_tuna_fish_can"],
-    #     obj_positions=[[0.0, 0.0, 0.0]],
-    #     dataset_dir="../dataset/train3"
-    # )
-    # training_pairs3 = data_gen.generate_dataset()
     
-    # data_gen = DatasetGenerator(
-    #     training_scenes=60,
-    #     obj_foldernames=["011_banana"],
-    #     obj_positions=[[0.0, 0.0, 0.0]],
-    #     dataset_dir="../dataset/train4"
-    # )
-    # training_pairs4 = data_gen.generate_dataset()
-    
-    # data_gen = DatasetGenerator(
-    #     training_scenes=60,
-    #     obj_foldernames=["024_bowl"],
-    #     obj_positions=[[0.0, 0.0, 0.0]],
-    #     dataset_dir="../dataset/train5"
-    # )
-    # training_pairs5 = data_gen.generate_dataset()
-    
-
 
 if __name__ == '__main__':
     main()
