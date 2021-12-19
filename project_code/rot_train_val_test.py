@@ -203,18 +203,19 @@ def train(model, device, train_loader, criterion, optimizer):
     batches = len(train_loader)
     
     #first dim of input gives number of samples
-
+    num_batches = 0
     for i, data in enumerate(train_loader, 0):
          # get the inputs; data is a list of [inputs, labels]
         inputs = data.get('input')
         labels = data.get('target')
-        print(labels.dtype)
+       
         
         # forward + backward + optimize (feed a batch of input into the model to get the output)
         btchsize = inputs.shape[0]
         inputs = inputs.reshape(btchsize,-1)
+        labels = labels.reshape(btchsize,3,3)
         outputs = model(inputs)
-        print(outputs.dtype)
+       
         # compute average loss of the batch using criterion()
         loss = criterion(outputs, labels)
         #compute mIoU of the batch using iou()
@@ -223,15 +224,17 @@ def train(model, device, train_loader, criterion, optimizer):
         
         #train_iou += sum(mIoU)/len(inputs)
         train_loss += loss.item() #avg over a batch so times batch size gives total loss per batch
+        print(loss.item())
         # zero the parameter gradients
         optimizer.zero_grad()
         #compute the gradients using loss.backward()
         loss.backward()
         #updates the parameters of the model using optimizer.step()
         optimizer.step()
+        num_batches +=1
     #compute the average loss and mIoU of the dataset to return  
     #train_iou = train_iou/batches #divide by number of samples
-    train_loss = train_loss/300 # by dataset size (size 300)
+    train_loss = train_loss/num_batches # by dataset size (size 300)
     
     train_iou = 0
     
@@ -301,7 +304,8 @@ def main():
     model = RotationNet()
 
     # Define criterion and optimizer
-    criterion = torch.nn.MSELoss()
+    #criterion = torch.nn.MSELoss()
+    criterion = geodesic_dist #gives pointer to function
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9) #best was .001
 
     # Train and validate the model
