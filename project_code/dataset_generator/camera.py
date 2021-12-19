@@ -142,10 +142,10 @@ def save_obs(
         mask_name: The name of the object mask corresponding to the observation.
     """
     view_matrix = p.computeViewMatrixFromYawPitchRoll(
-        cameraTargetPosition=(0.0, 0.0, 0.0),
-        distance = 0.7,
+        cameraTargetPosition=(0.0, 0.0, 0.1),
+        distance = 0.2,
         yaw = 0,
-        pitch = -25,
+        pitch = -45,
         roll = 0,
         upAxisIndex = 2
     )

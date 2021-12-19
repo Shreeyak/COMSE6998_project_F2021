@@ -1,3 +1,6 @@
 *__pycache__
 *.ipynb_checkpoints*
 *.DS_Store*
+project_code/dataset
+project_code/wandb
+project_code/logs

@@ -70,7 +70,7 @@ class RotationNetPl(pl.LightningModule):
         preds = self.model(inputs)
 
         loss = geodesic_dist(preds, labels)
-        self.log(f"{stage.value}/loss", loss)
+        self.log(f"{stage.value}/loss", loss,on_step=False, on_epoch=True)
 
         outputs = {
             "loss": loss
@@ -92,7 +92,7 @@ class RotationNetPl(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, self.parameters()),
                                      lr=1e-3,
-                                     weight_decay=0)
+                                     weight_decay=0.01)
         ret_opt = {"optimizer": optimizer}
         return ret_opt
 
@@ -102,7 +102,7 @@ def main():
 
     dir_root = Path("./logs")
     dir_root.mkdir(exist_ok=True)
-    wb_logger = pl_loggers.WandbLogger(name=None, id=None, entity="cleargrasp2", project="rotations",
+    wb_logger = pl_loggers.WandbLogger(name=None, id=None, entity="sd3109", project="rotenv",
                                        save_dir=str("./logs"))
 
     callbacks = [
@@ -121,11 +121,11 @@ def main():
         logger=wb_logger,
         callbacks=callbacks,
         # default_root_dir=str(default_root_dir),
-        strategy=DDPPlugin(find_unused_parameters=False),
-        gpus=0,
+        #strategy=DDPPlugin(find_unused_parameters=False),
+        gpus=1,
         precision=32,
         max_epochs=10,
-        log_every_n_steps=50,
+        log_every_n_steps=20,
         check_val_every_n_epoch=1,
         fast_dev_run=False,
         overfit_batches=0.0,

@@ -79,10 +79,18 @@ def read_depth(file_path):
         Read in a depth image.
     """
     # depth is saved as 16-bit uint in millimenters
-    depth_image = cv2.imread(file_path, -1).astype(float)
+    depth_image = cv2.imread(file_path, -1).astype(np.float32)
 
     # millimeters to meters
     depth_image /= 1000.
+    
+    #normalize the depth
+    # 0.4 because camera 0.2 away from the object, + 0.2 = 0.4
+    max_dist = 0.4
+    
+    depth_image[depth_image > max_dist] = 0
+    
+    depth_image /= max_dist
 
     return depth_image
 

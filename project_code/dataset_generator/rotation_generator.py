@@ -61,8 +61,8 @@ class RotationGenerator:
         
         rots = [r_x, r_y, r_z]
         
-        rand_idx = random.choice([0, 1, 2])
-        rot_mat = rots[rand_idx]
+        #rand_idx = random.choice([0, 1, 2])
+        rot_mat = r_z #rots[rand_idx]
         rot_quat = Rotation.from_matrix(rot_mat).as_quat()
 
         return rot_mat, rot_quat

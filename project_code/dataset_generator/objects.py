@@ -63,16 +63,16 @@ def load_obj(
             fileName="./YCB_subsubset/" + obj_foldernames[i] + "/obj.urdf",
             basePosition=positions[i],
             baseOrientation=p.getQuaternionFromEuler(
-                [cur_orientation[0],
-                 cur_orientation[1],
-                 cur_orientation[2]]
+                [0,
+                 0,
+                 0]
             ),
             globalScaling=1,
         )
         obj_ids.append(cur_id)
     
    # Drop objects on the floor
-    for tick in range(500):
+    for tick in range(1):
         p.stepSimulation()
     return obj_ids
 
@@ -108,6 +108,6 @@ def reset_obj(
             )
         )
     # Drop objects on the floor
-    for tick in range(500):
+    for tick in range(1):
         p.stepSimulation()
     return
