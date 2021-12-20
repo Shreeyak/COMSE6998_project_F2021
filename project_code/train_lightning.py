@@ -185,16 +185,16 @@ class RotationNetPl(pl.LightningModule):
         """
         return self._step(batch, Stage.TRAIN)
 
-    # def validation_step(self, batch, batch_idx):
-    #     return self._step(batch, Stage.VAL)
-    #
-    # def test_step(self, batch, batch_idx):
-    #     return self._step(batch, Stage.TEST)
+    def validation_step(self, batch, batch_idx):
+        return self._step(batch, Stage.VAL)
+
+    def test_step(self, batch, batch_idx):
+        return self._step(batch, Stage.TEST)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, self.parameters()),
-                                     lr=1e-3,
-                                     weight_decay=0.01)
+                                     lr=1e-2,
+                                     weight_decay=0)
         ret_opt = {"optimizer": optimizer}
         return ret_opt
 
@@ -232,7 +232,7 @@ def main():
         precision=32,
         max_epochs=100,
         # log_every_n_steps=20,
-        check_val_every_n_epoch=1,
+        check_val_every_n_epoch=3,
         fast_dev_run=False,
         overfit_batches=0.0,
     )

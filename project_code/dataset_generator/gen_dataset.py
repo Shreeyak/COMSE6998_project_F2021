@@ -112,7 +112,7 @@ class DatasetGenerator(object):
                     )
 
                     # save an observation pre-transformation matrix
-                    rgb1, mask1, depth1 = save_obs(self.dataset_dir, self.this_camera, i + current_file_num, "before")
+                    rgb1, mask1, depth1 = save_obs(self.dataset_dir, self.this_camera, current_file_num, "before")
                     # collect current position and orientation info
                     objPos, objOrn = p.getBasePositionAndOrientation(obj_ids[0])
 
@@ -140,7 +140,7 @@ class DatasetGenerator(object):
                     fd.write(rot_clean_str + "\n")
 
                     # save an observation post-transformation matrix
-                    rgb2, mask2, depth2 = save_obs(self.dataset_dir, self.this_camera, i + current_file_num, "after")
+                    rgb2, mask2, depth2 = save_obs(self.dataset_dir, self.this_camera, current_file_num, "after")
                     current_file_num += 1
 
                 p.removeBody(obj_ids[0])
@@ -149,11 +149,11 @@ class DatasetGenerator(object):
 
 def main():
     data_gen = DatasetGenerator(
-        training_scenes=30,
-        # obj_foldernames=["004_sugar_box", "005_tomato_soup_can", "007_tuna_fish_can", "011_banana", "024_bowl"],
-        obj_foldernames=["006_mustard_bottle", "008_pudding_box", "009_gelatin_box", "010_potted_meat_can", "019_pitcher_base"],
+        training_scenes=300,
+        obj_foldernames=["004_sugar_box", "005_tomato_soup_can", "007_tuna_fish_can", "011_banana", "024_bowl"],
+        # obj_foldernames=["006_mustard_bottle", "008_pudding_box", "009_gelatin_box", "010_potted_meat_can", "019_pitcher_base"],
         obj_positions=[[0.0, 0.0, 0.1]],
-        dataset_dir="../dataset/test",
+        dataset_dir="../dataset/train",
         max_rot_per_axis=30
     )
     data_gen.generate_dataset()
