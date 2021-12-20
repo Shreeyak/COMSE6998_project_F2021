@@ -4,3 +4,6 @@
 project_code/dataset/
 project_code/wandb/
 project_code/logs/
+project_code/lightning_logs/
+project_code/test_visuals
+project_code/dataset_generator/rgb

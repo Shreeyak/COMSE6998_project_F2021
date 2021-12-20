@@ -3,11 +3,13 @@ import warnings
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Union
+from scipy.spatial.transform import Rotation as R
 
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import wandb
+import numpy as np
 
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers as pl_loggers
@@ -193,7 +195,7 @@ class RotationNetPl(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, self.parameters()),
-                                     lr=1e-2,
+                                     lr=1e-4,
                                      weight_decay=0)
         ret_opt = {"optimizer": optimizer}
         return ret_opt
@@ -216,18 +218,18 @@ def main():
     if not data_root_dir.is_dir():
         raise ValueError(f"Dir does not exist: {data_root_dir}")
 
-    train_dataset = RotationDataset(str(data_root_dir/"train") + '/', True)
-    val_dataset = RotationDataset(str(data_root_dir/"val") + '/', True)
-    test_dataset = RotationDataset(str(data_root_dir/"test") + '/', True)
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=False)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=False)
+    train_dataset = RotationDataset(str(data_root_dir / "train") + '/', True)
+    val_dataset = RotationDataset(str(data_root_dir / "val") + '/', True)
+    test_dataset = RotationDataset(str(data_root_dir / "test") + '/', True)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=1, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=1, drop_last=False)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=1, drop_last=False)
 
     trainer = pl.Trainer(
         logger=wb_logger,
         callbacks=callbacks,
         # default_root_dir=str(default_root_dir),
-        strategy=DDPPlugin(find_unused_parameters=False),
+        #strategy=DDPPlugin(find_unused_parameters=False),
         gpus=1,
         precision=32,
         max_epochs=100,
@@ -241,7 +243,7 @@ def main():
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     # Testing
-    _ = trainer.test(model, test_dataloaders=test_loader)
+    _ = trainer.test(model, test_dataloaders=test_loader, ckpt_path='best')
 
     wandb.finish()
 

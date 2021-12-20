@@ -18,7 +18,6 @@ def gen_obj_orientation(num_scene: int, num_obj: int) -> List[List[float]]:
     """
     obj_orientations = []
     num_ori = num_scene * num_obj
-    np.random.seed(42)
     list_roll = np.random.choice(360, num_ori, replace=False)
     list_pitch = np.random.choice(360, num_ori, replace=False)
     list_yaw = np.random.choice(360, num_ori, replace=False)
