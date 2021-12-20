@@ -3,6 +3,7 @@ import objects
 import pybullet_data
 import pybullet as p
 import sys
+
 sys.path.insert(1, './')
 from rotation_generator import RotationGenerator
 import os
@@ -28,7 +29,8 @@ class DatasetGenerator(object):
                  training_scenes: int,
                  obj_foldernames: List[str],
                  obj_positions: List[List[float]],
-                 dataset_dir: str):
+                 dataset_dir: str,
+                 max_rot_per_axis: int):
         """
         Initializes the DatasetGenerator class.
 
@@ -43,6 +45,7 @@ class DatasetGenerator(object):
                            coordinates.
             dataset_dir: The directory we'd like to save our training examples
                          to.
+            max_rot_per_axis: When rotating the objects, the max angle to rotate along each axis, in degrees.
         """
         self.this_camera = Camera(
             image_size=(64, 64),
@@ -58,6 +61,7 @@ class DatasetGenerator(object):
             num_scene=self.training_scenes,
             num_obj=1
         )
+        self.max_rot_per_axis = max_rot_per_axis
 
         self.dataset_dir = dataset_dir
         if not os.path.exists(dataset_dir):
@@ -66,130 +70,94 @@ class DatasetGenerator(object):
             os.makedirs(dataset_dir + "/gt/")
             os.makedirs(dataset_dir + "/depth/")
             os.makedirs(dataset_dir + "/rotations/")
-            
-        self.rot_file = dataset_dir+"/rotations/rotations.csv"
-       
-        f = open(self.rot_file, 'w') 
-       
-        #if os.path.exists(self.rot_file):
-           # os.remove(self.rot_file)
-            
-        
 
-    def generate_dataset(self)->Dict[int,Tuple[np.array,Dict[str,List[str]]]]:
+        self.rot_file = dataset_dir + "/rotations/rotations.csv"
+
+    def generate_dataset(self) -> Dict[int, Tuple[np.array, Dict[str, List[str]]]]:
         """
-        Generates the dataset of our project.
-
-        Returns:
-            training_pairs: An object which stores the training pairs of our
-                            training data. An observation constituted by an rgb
-                            image and a depth mask image is made before and
-                            after each random transformation is applied; the
-                            names of those observation filenames are recorded.
-                            The return object stores them in a dictionary
-                            whose keys are the scene number and whose values
-                            are tuples of the transformation matrix and
-                            associated before & after image pairs. One key-val
-                            pair, corresponding to the first scene, might look
-                            like
-                            {i:
-                                (np.array([1, 0, 0], [0, 1, 0], [0, 0, 1]),
-                                {'rgb': ["1_before_rgb.png", "1_after_rgb.png"],
-                                 'mask': ["1_before_gt.png", "1_after_gt.png"]}
-                                )
-                            }
+        Generates the dataset of our project. It is saved to self.dataset_dir
         """
         p.connect(p.GUI)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
-        #dont need gravity, can spawn half a meter
-        p.setGravity(0, 0, 0)
-        rot_gen = RotationGenerator(0.7853)
+        p.setGravity(0, 0, 0)  # dont need gravity, objects stay where they are
+        rot_gen = RotationGenerator(self.max_rot_per_axis * np.pi / 180)
 
         # Load floor
         p.loadURDF("plane.urdf")
-        
-        f = open(self.rot_file, 'a')
-            
         current_file_num = 0
-        training_pairs = {}
         print("Start generating the training set.")
-         
-        for j in range(0,len(self.obj_foldernames)):
-            
-            #for each object folder in the list, generate traning scenes
-            current_obj = [self.obj_foldernames[j]]
-            
-            #get new orientations
-            self.obj_orientations = objects.gen_obj_orientation(
-                num_scene=self.training_scenes,
-                num_obj=1
-            )
-            
-            # Load current object
-            obj_ids = objects.load_obj(
-                current_obj,
-                self.obj_positions,
-                self.obj_orientations)
 
-            for i in range(0, self.training_scenes):
-                print(f'==> {i+1} / {self.training_scenes}')
-                # Reset object(s) by dropping on the ground
-                objects.reset_obj(
-                    obj_ids,
-                    self.obj_positions,
-                    self.obj_orientations,
-                    scene_id =  i
-                )
-                      
-                # save an observation pre-transformation matrix
-                rgb1,mask1,depth1 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"before")
-                
-                # collect current position and orientation info
-                objPos, objOrn = p.getBasePositionAndOrientation(obj_ids[0])
-                
-                # generate a random 3D rotation quaternion
-                rot_mat, rot_quat = rot_gen.generate_simple_rotation()
-                
-                # apply rotation matrix to object's position and orientation
-                curRotMat = np.array(p.getMatrixFromQuaternion(objOrn)).reshape(3,3)
-                newRotMat = curRotMat @ rot_mat
-                newQuat = R.from_matrix(newRotMat).as_quat()
-                
-                # Reset the object's position with respect to new values
-                p.resetBasePositionAndOrientation(
-                    obj_ids[0], # currently only works for the banana
-                    posObj=objPos,
-                    ornObj=newQuat
-                )
-    
-                #Save rot_matrix after making it flat  
-                rot_flat = str(rot_mat.flatten())
-                rot_clean_str = " "
-                rot_clean_str = rot_clean_str.join(rot_flat.split())
-                rot_clean_str = rot_clean_str[2:-1]
-                f.write(rot_clean_str)
-                f.write('\n')
-                
-                # save an observation post-transformation matrix
-                rgb2,mask2,depth2 = save_obs(self.dataset_dir,self.this_camera,i+current_file_num,"after")
-                
-            current_file_num+=60
-            
-            p.removeBody(obj_ids[0])
+        with open(self.rot_file, 'a') as fd:
+            for j in range(0, len(self.obj_foldernames)):
 
+                # for each object folder in the list, generate training scenes
+                current_obj = [self.obj_foldernames[j]]
+
+                # get new orientations
+                self.obj_orientations = objects.gen_obj_orientation(
+                    num_scene=self.training_scenes,
+                    num_obj=1
+                )
+
+                # Load current object
+                obj_ids = objects.load_obj(current_obj, self.obj_positions)
+
+                for i in range(0, self.training_scenes):
+                    print(f'==> {i + 1} / {self.training_scenes}')
+                    # Apply a random rotation to the object
+                    objects.reset_obj(
+                        obj_ids,
+                        self.obj_positions,
+                        self.obj_orientations,
+                        scene_id=i
+                    )
+
+                    # save an observation pre-transformation matrix
+                    rgb1, mask1, depth1 = save_obs(self.dataset_dir, self.this_camera, i + current_file_num, "before")
+                    # collect current position and orientation info
+                    objPos, objOrn = p.getBasePositionAndOrientation(obj_ids[0])
+
+                    # generate a random 3D rotation quaternion
+                    # rot_mat, rot_quat = rot_gen.generate_simple_rotation()  # Rotate only about X-axis
+                    rot_mat, rot_quat = rot_gen.generate_rotation()  # Rotate about all 3 axes
+
+                    # apply rotation matrix to object's position and orientation
+                    curRotMat = np.array(p.getMatrixFromQuaternion(objOrn)).reshape(3, 3)
+                    newRotMat = curRotMat @ rot_mat
+                    newQuat = R.from_matrix(newRotMat).as_quat()
+
+                    # Reset the object's position with respect to new values
+                    p.resetBasePositionAndOrientation(
+                        obj_ids[0],  # currently only works for the banana
+                        posObj=objPos,
+                        ornObj=newQuat
+                    )
+
+                    # Save rot_matrix after making it flat
+                    rot_flat = str(rot_mat.flatten())
+                    rot_clean_str = " "
+                    rot_clean_str = rot_clean_str.join(rot_flat.split())
+                    rot_clean_str = rot_clean_str[2:-1]
+                    fd.write(rot_clean_str + "\n")
+
+                    # save an observation post-transformation matrix
+                    rgb2, mask2, depth2 = save_obs(self.dataset_dir, self.this_camera, i + current_file_num, "after")
+                    current_file_num += 1
+
+                p.removeBody(obj_ids[0])
         p.disconnect()
-        f.close()
+
 
 def main():
     data_gen = DatasetGenerator(
-        training_scenes=60,
-        obj_foldernames=["004_sugar_box","005_tomato_soup_can","007_tuna_fish_can","011_banana","024_bowl"],
+        training_scenes=300,
+        obj_foldernames=["004_sugar_box", "005_tomato_soup_can", "007_tuna_fish_can", "011_banana", "024_bowl"],
         obj_positions=[[0.0, 0.0, 0.1]],
-        dataset_dir="../dataset/train1"
+        dataset_dir="../dataset/train",
+        max_rot_per_axis=30
     )
-    training_pairs1 = data_gen.generate_dataset()
-    
-    
+    data_gen.generate_dataset()
+
 
 if __name__ == '__main__':
     main()

@@ -39,8 +39,7 @@ def gen_obj_orientation(num_scene: int, num_obj: int) -> List[List[float]]:
 
 def load_obj(
     obj_foldernames: List[str],
-    positions: List[List[float]],
-    orientations: List[List[float]]) -> List[int]:
+    positions: List[List[float]]) -> List[int]:
     """
     Load objects into the scene.
 
@@ -49,8 +48,7 @@ def load_obj(
                          scene.
         positions: The initial positions of each of the objects to be loaded
                    into the scene.
-        orientations: The initial orientations of each of the objects to be
-                      loaded into the scene.
+
     Returns:
         obj_ids: The IDs of objects loaded. If all objects are loaded
                  successfully, return is positive definite.
@@ -58,22 +56,13 @@ def load_obj(
     obj_ids = []
     num_obj = len(obj_foldernames)
     for i in range(num_obj):
-        cur_orientation = orientations[i]
         cur_id = p.loadURDF(
             fileName="./YCB_subsubset/" + obj_foldernames[i] + "/obj.urdf",
             basePosition=positions[i],
-            baseOrientation=p.getQuaternionFromEuler(
-                [0,
-                 0,
-                 0]
-            ),
+            baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
             globalScaling=1,
         )
         obj_ids.append(cur_id)
-    
-   # Drop objects on the floor
-    for tick in range(1):
-        p.stepSimulation()
     return obj_ids
 
 
