@@ -77,25 +77,13 @@ class RotationGenerator:
         down into a matrix product of rotations about x by roll angle
         gamma, about y by pitch angle beta, and about z by yaw angle
         alpha.
-        
-        Args:
-            as_quat: Determines whether or not to return the rotation matrix
-                     as a quaternion.
+
         Returns:
             rot_mat: A 3x3 matrix describing a general rotation transformation.
             rot_quat: A 4-vector quaternion representation of the rotation.
         """
-        rots = np.random.uniform(low=0.0, high=self.angle_max, size=3)
-        alpha, beta, gamma = rots[0], rots[1], rots[2]
-        sin_a, cos_a = np.sin(alpha), np.cos(alpha)
-        sin_b, cos_b = np.sin(beta), np.cos(beta)
-        sin_g, cos_g = np.sin(gamma), np.cos(gamma)
-        
-        rot_mat = np.array(
-        [[cos_a*cos_b, cos_a*sin_b*sin_g-sin_a*cos_g, cos_a*sin_b*cos_g+sin_a*sin_g],
-         [sin_a*cos_b, sin_a*sin_b*sin_g+cos_a*cos_g, sin_a*sin_b*cos_g-cos_a*sin_g],
-         [-sin_b     , cos_b*sin_g                  , cos_b*cos_g                  ]])
-        
-        rot_quat = Rotation.from_matrix(rot_mat).as_quat()
-        
+        rot_xyz = np.random.uniform(low=0.0, high=self.angle_max, size=(3,))
+        r = Rotation.from_euler("xyz", rot_xyz)
+        rot_quat = r.as_quat()
+        rot_mat = r.as_matrix()
         return rot_mat, rot_quat

@@ -86,12 +86,19 @@ class OrthoMatrix:
 class RotationNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.layer1 = nn.Linear(8*64*64, 4*32*32)
-        self.layer2 = nn.Linear(4*32*32, 2*16*16)
-        self.layer3 = nn.Linear(2 * 16 * 16, 1*8*8)
-        self.layer4 = nn.Linear(1 * 8 * 8, 4*4)
-        self.layer5 = nn.Linear(4*4, 6)
-        self.model = nn.Sequential(self.layer1, self.layer2, self.layer3, self.layer4, self.layer5)
+        self.layer1 = nn.Linear(8 * 64 * 64, 4 * 32 * 32)
+        self.relu1 = nn.ReLU()
+        self.layer2 = nn.Linear(4 * 32 * 32, 2 * 16 * 16)
+        self.relu2 = nn.ReLU()
+        self.layer3 = nn.Linear(2 * 16 * 16, 1 * 8 * 8)
+        self.relu3 = nn.ReLU()
+        self.layer4 = nn.Linear(1 * 8 * 8, 4 * 4)
+        self.relu4 = nn.ReLU()
+        self.layer5 = nn.Linear(4 * 4, 6)
+        self.model = nn.Sequential(
+            self.layer1, self.relu1, self.layer2, self.relu2, self.layer3, self.relu3, self.layer4, self.relu4,
+            self.layer5
+        )
 
         self.ortho_mat = OrthoMatrix()
 
@@ -120,8 +127,9 @@ class RotationConvNet(nn.Module):
         h_out = int(self.imsize[0] / 8)  # Resnet downsamples to 1/8 of size
         w_out = int(self.imsize[1] / 8)  # Resnet downsamples to 1/8 of size
 
-        self.layer1 = nn.Linear(64 * h_out * w_out, 16 * int(h_out/4) * int(w_out/4))
-        self.layer2 = nn.Linear(16 * int(h_out/4) * int(w_out/4), 6)
+        self.layer1 = nn.Linear(64 * h_out * w_out, 16 * int(h_out / 4) * int(w_out / 4))
+        self.relu = nn.ReLU()
+        self.layer2 = nn.Linear(16 * int(h_out / 4) * int(w_out / 4), 6)
 
         self.ortho_mat = OrthoMatrix()
 
@@ -131,6 +139,7 @@ class RotationConvNet(nn.Module):
 
         bsize = x.shape[0]
         x = self.layer1(x.reshape(bsize, -1))
+        x = self.relu(x)
         x = self.layer2(x)  # [B, 6]
         x = self.ortho_mat.compute_rotation_matrix_from_ortho6d(x)  # Shape: [B, 3, 3]
         return x
@@ -176,16 +185,16 @@ class RotationNetPl(pl.LightningModule):
         """
         return self._step(batch, Stage.TRAIN)
 
-    # def validation_step(self, batch, batch_idx):
-    #     return self._step(batch, Stage.VAL)
-    #
-    # def test_step(self, batch, batch_idx):
-    #     return self._step(batch, Stage.TEST)
+    def validation_step(self, batch, batch_idx):
+        return self._step(batch, Stage.VAL)
+
+    def test_step(self, batch, batch_idx):
+        return self._step(batch, Stage.TEST)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, self.parameters()),
-                                     lr=1e-3,
-                                     weight_decay=0.01)
+                                     lr=1e-2,
+                                     weight_decay=0)
         ret_opt = {"optimizer": optimizer}
         return ret_opt
 
@@ -203,12 +212,16 @@ def main():
     ]
     model = RotationNetPl()
 
-    train_dir = Path("./dataset/train1")
-    if not train_dir.is_dir():
-        raise ValueError(f"Dir does not exist: {train_dir}")
+    data_root_dir = Path("./dataset")
+    if not data_root_dir.is_dir():
+        raise ValueError(f"Dir does not exist: {data_root_dir}")
 
-    train_dataset = RotationDataset(str(train_dir) + '/', True)
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=8, drop_last=True)
+    train_dataset = RotationDataset(str(data_root_dir/"train") + '/', True)
+    val_dataset = RotationDataset(str(data_root_dir/"val") + '/', True)
+    test_dataset = RotationDataset(str(data_root_dir/"test") + '/', True)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=False)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=False)
 
     trainer = pl.Trainer(
         logger=wb_logger,
@@ -218,16 +231,17 @@ def main():
         gpus=1,
         precision=32,
         max_epochs=100,
-        log_every_n_steps=20,
-        check_val_every_n_epoch=1,
+        # log_every_n_steps=20,
+        check_val_every_n_epoch=3,
         fast_dev_run=False,
         overfit_batches=0.0,
     )
 
     # Run Training
-    trainer.fit(model, train_dataloaders=train_loader)
+    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-    # _ = trainer.test(model, datamodule=dm, ckpt_path=ckpt_path)
+    # Testing
+    _ = trainer.test(model, test_dataloaders=test_loader)
 
     wandb.finish()
 
