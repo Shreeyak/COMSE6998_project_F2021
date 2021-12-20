@@ -8,14 +8,16 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import wandb
-from torch import Tensor
+
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.utilities import rank_zero_only
 from rotation_dataset import RotationDataset
 from torch.utils.data import DataLoader
 from pytorch_lightning.plugins import DDPPlugin
+
 from geodesic_loss import GeodesicDist
+import dilated_resnet as drn
 
 
 class Stage(Enum):
@@ -94,9 +96,44 @@ class RotationNet(nn.Module):
         self.ortho_mat = OrthoMatrix()
 
     def forward(self, x):
+        bsize = x.shape[0]
+        x = x.reshape(bsize, -1)  # Shape: [B, N]
         x = self.model(x)  # Shape: [B, 6]
         rot_mat = self.ortho_mat.compute_rotation_matrix_from_ortho6d(x)  # Shape: [B, 3, 3]
         return rot_mat
+
+
+class RotationConvNet(nn.Module):
+    def __init__(self, imsize: Tuple[int, int] = (64, 64), input_channels: int = 8):
+        """
+        Args:
+            imsize: Inpit image size
+            input_channels: Num of input channels. Default = 8 (RGBD-before + RGBD-after)
+        """
+        super().__init__()
+
+        self.imsize = imsize
+
+        self.resnet = drn.drn_d_22(nn.BatchNorm2d, pretrained=True, input_channels=input_channels)
+        self.conv1 = nn.Conv2d(512, 64, 1)
+
+        h_out = int(self.imsize[0] / 8)  # Resnet downsamples to 1/8 of size
+        w_out = int(self.imsize[1] / 8)  # Resnet downsamples to 1/8 of size
+
+        self.layer1 = nn.Linear(64 * h_out * w_out, 16 * int(h_out/4) * int(w_out/4))
+        self.layer2 = nn.Linear(16 * int(h_out/4) * int(w_out/4), 6)
+
+        self.ortho_mat = OrthoMatrix()
+
+    def forward(self, x):
+        x = self.resnet(x)
+        x = self.conv1(x)
+
+        bsize = x.shape[0]
+        x = self.layer1(x.reshape(bsize, -1))
+        x = self.layer2(x)  # [B, 6]
+        x = self.ortho_mat.compute_rotation_matrix_from_ortho6d(x)  # Shape: [B, 3, 3]
+        return x
 
 
 class RotationNetPl(pl.LightningModule):
@@ -104,7 +141,8 @@ class RotationNetPl(pl.LightningModule):
         super().__init__()
         # self.save_hyperparameters()  # Will save args to hparams attr. Also allows upload of config to wandb.
 
-        self.model = RotationNet()
+        # self.model = RotationNet()
+        self.model = RotationConvNet((64, 64), input_channels=8)
 
         self.geo_dist = GeodesicDist(reduction="mean")
 
@@ -120,11 +158,9 @@ class RotationNetPl(pl.LightningModule):
         inputs = batch["input"]
         labels = batch["target"]
         bsize = inputs.shape[0]
-        inputs = inputs.reshape(bsize, -1)  # Shape: [B, N]
         labels = labels.reshape(bsize, 3, 3)  # Shape: [B, 3, 3]
 
-        # preds = self(inputs)
-        preds = self.model(inputs)
+        preds = self.model(inputs)  # Shape: [B, 6]
 
         loss = self.geo_dist(preds, labels)
         self.log(f"{stage.value}/loss", loss, on_step=False, on_epoch=True)
@@ -172,16 +208,16 @@ def main():
         raise ValueError(f"Dir does not exist: {train_dir}")
 
     train_dataset = RotationDataset(str(train_dir) + '/', True)
-    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=8, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=8, drop_last=True)
 
     trainer = pl.Trainer(
         logger=wb_logger,
         callbacks=callbacks,
         # default_root_dir=str(default_root_dir),
-        #strategy=DDPPlugin(find_unused_parameters=False),
+        strategy=DDPPlugin(find_unused_parameters=False),
         gpus=1,
         precision=32,
-        max_epochs=10,
+        max_epochs=100,
         log_every_n_steps=20,
         check_val_every_n_epoch=1,
         fast_dev_run=False,
