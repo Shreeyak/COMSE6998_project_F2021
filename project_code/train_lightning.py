@@ -172,7 +172,7 @@ def main():
         raise ValueError(f"Dir does not exist: {train_dir}")
 
     train_dataset = RotationDataset(str(train_dir) + '/', True)
-    train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True, num_workers=8, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=8, drop_last=True)
 
     trainer = pl.Trainer(
         logger=wb_logger,
