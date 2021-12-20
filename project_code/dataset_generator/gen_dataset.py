@@ -64,12 +64,11 @@ class DatasetGenerator(object):
         self.max_rot_per_axis = max_rot_per_axis
 
         self.dataset_dir = dataset_dir
-        if not os.path.exists(dataset_dir):
-            os.makedirs(dataset_dir)
-            os.makedirs(dataset_dir + "/rgb/")
-            os.makedirs(dataset_dir + "/gt/")
-            os.makedirs(dataset_dir + "/depth/")
-            os.makedirs(dataset_dir + "/rotations/")
+        os.makedirs(dataset_dir, exist_ok=True)
+        os.makedirs(dataset_dir + "/rgb/", exist_ok=True)
+        os.makedirs(dataset_dir + "/gt/", exist_ok=True)
+        os.makedirs(dataset_dir + "/depth/", exist_ok=True)
+        os.makedirs(dataset_dir + "/rotations/", exist_ok=True)
 
         self.rot_file = dataset_dir + "/rotations/rotations.csv"
 
@@ -150,10 +149,11 @@ class DatasetGenerator(object):
 
 def main():
     data_gen = DatasetGenerator(
-        training_scenes=300,
-        obj_foldernames=["004_sugar_box", "005_tomato_soup_can", "007_tuna_fish_can", "011_banana", "024_bowl"],
+        training_scenes=30,
+        # obj_foldernames=["004_sugar_box", "005_tomato_soup_can", "007_tuna_fish_can", "011_banana", "024_bowl"],
+        obj_foldernames=["006_mustard_bottle", "008_pudding_box", "009_gelatin_box", "010_potted_meat_can", "019_pitcher_base"],
         obj_positions=[[0.0, 0.0, 0.1]],
-        dataset_dir="../dataset/train",
+        dataset_dir="../dataset/test",
         max_rot_per_axis=30
     )
     data_gen.generate_dataset()

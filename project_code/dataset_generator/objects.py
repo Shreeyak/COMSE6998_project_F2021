@@ -97,6 +97,6 @@ def reset_obj(
             )
         )
     # Drop objects on the floor
-    for tick in range(1):
-        p.stepSimulation()
+    # for tick in range(1):
+    #     p.stepSimulation()
     return

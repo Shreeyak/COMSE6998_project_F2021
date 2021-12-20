@@ -212,12 +212,16 @@ def main():
     ]
     model = RotationNetPl()
 
-    train_dir = Path("./dataset/train1")
-    if not train_dir.is_dir():
-        raise ValueError(f"Dir does not exist: {train_dir}")
+    data_root_dir = Path("./dataset")
+    if not data_root_dir.is_dir():
+        raise ValueError(f"Dir does not exist: {data_root_dir}")
 
-    train_dataset = RotationDataset(str(train_dir) + '/', True)
+    train_dataset = RotationDataset(str(data_root_dir/"train") + '/', True)
+    val_dataset = RotationDataset(str(data_root_dir/"val") + '/', True)
+    test_dataset = RotationDataset(str(data_root_dir/"test") + '/', True)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=False)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=False)
 
     trainer = pl.Trainer(
         logger=wb_logger,
@@ -234,9 +238,10 @@ def main():
     )
 
     # Run Training
-    trainer.fit(model, train_dataloaders=train_loader)
+    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-    # _ = trainer.test(model, datamodule=dm, ckpt_path=ckpt_path)
+    # Testing
+    _ = trainer.test(model, test_dataloaders=test_loader)
 
     wandb.finish()
 
