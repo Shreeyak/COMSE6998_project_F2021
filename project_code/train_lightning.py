@@ -86,12 +86,19 @@ class OrthoMatrix:
 class RotationNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.layer1 = nn.Linear(8*64*64, 4*32*32)
-        self.layer2 = nn.Linear(4*32*32, 2*16*16)
-        self.layer3 = nn.Linear(2 * 16 * 16, 1*8*8)
-        self.layer4 = nn.Linear(1 * 8 * 8, 4*4)
-        self.layer5 = nn.Linear(4*4, 6)
-        self.model = nn.Sequential(self.layer1, self.layer2, self.layer3, self.layer4, self.layer5)
+        self.layer1 = nn.Linear(8 * 64 * 64, 4 * 32 * 32)
+        self.relu1 = nn.ReLU()
+        self.layer2 = nn.Linear(4 * 32 * 32, 2 * 16 * 16)
+        self.relu2 = nn.ReLU()
+        self.layer3 = nn.Linear(2 * 16 * 16, 1 * 8 * 8)
+        self.relu3 = nn.ReLU()
+        self.layer4 = nn.Linear(1 * 8 * 8, 4 * 4)
+        self.relu4 = nn.ReLU()
+        self.layer5 = nn.Linear(4 * 4, 6)
+        self.model = nn.Sequential(
+            self.layer1, self.relu1, self.layer2, self.relu2, self.layer3, self.relu3, self.layer4, self.relu4,
+            self.layer5
+        )
 
         self.ortho_mat = OrthoMatrix()
 
@@ -120,8 +127,9 @@ class RotationConvNet(nn.Module):
         h_out = int(self.imsize[0] / 8)  # Resnet downsamples to 1/8 of size
         w_out = int(self.imsize[1] / 8)  # Resnet downsamples to 1/8 of size
 
-        self.layer1 = nn.Linear(64 * h_out * w_out, 16 * int(h_out/4) * int(w_out/4))
-        self.layer2 = nn.Linear(16 * int(h_out/4) * int(w_out/4), 6)
+        self.layer1 = nn.Linear(64 * h_out * w_out, 16 * int(h_out / 4) * int(w_out / 4))
+        self.relu = nn.ReLU()
+        self.layer2 = nn.Linear(16 * int(h_out / 4) * int(w_out / 4), 6)
 
         self.ortho_mat = OrthoMatrix()
 
@@ -131,6 +139,7 @@ class RotationConvNet(nn.Module):
 
         bsize = x.shape[0]
         x = self.layer1(x.reshape(bsize, -1))
+        x = self.relu(x)
         x = self.layer2(x)  # [B, 6]
         x = self.ortho_mat.compute_rotation_matrix_from_ortho6d(x)  # Shape: [B, 3, 3]
         return x
@@ -208,7 +217,7 @@ def main():
         raise ValueError(f"Dir does not exist: {train_dir}")
 
     train_dataset = RotationDataset(str(train_dir) + '/', True)
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=8, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
 
     trainer = pl.Trainer(
         logger=wb_logger,
@@ -218,7 +227,7 @@ def main():
         gpus=1,
         precision=32,
         max_epochs=100,
-        log_every_n_steps=20,
+        # log_every_n_steps=20,
         check_val_every_n_epoch=1,
         fast_dev_run=False,
         overfit_batches=0.0,
