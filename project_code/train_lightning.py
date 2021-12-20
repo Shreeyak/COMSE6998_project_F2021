@@ -1,25 +1,26 @@
-import datetime
-import warnings
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Union
 from scipy.spatial.transform import Rotation as R
+from typing import Tuple
 
+from enum import Enum
+from pathlib import Path
+from typing import Tuple
+
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import wandb
-import numpy as np
-
-from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers as pl_loggers
-from pytorch_lightning.utilities import rank_zero_only
-from rotation_dataset import RotationDataset
-from torch.utils.data import DataLoader
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.plugins import DDPPlugin
+from torch.utils.data import DataLoader
 
-from geodesic_loss import GeodesicDist
 import dilated_resnet as drn
+from geodesic_loss import GeodesicDist
+from rotation_dataset import RotationDataset
 
 
 class Stage(Enum):
@@ -28,6 +29,20 @@ class Stage(Enum):
     TRAIN = "Train"
     VAL = "Val"
     TEST = "Test"
+
+
+class AccLoss:
+    """Accumulate all the losses and average at end of epoch"""
+    def __init__(self):
+        self.total_loss = 0
+        self.num_steps = 0
+
+    def acc(self, loss):
+        self.total_loss += loss
+        self.num_steps += 1
+
+    def compute(self):
+        return self.total_loss / self.num_steps
 
 
 class OrthoMatrix:
@@ -97,8 +112,16 @@ class RotationNet(nn.Module):
         self.layer4 = nn.Linear(1 * 8 * 8, 4 * 4)
         self.relu4 = nn.ReLU()
         self.layer5 = nn.Linear(4 * 4, 6)
+
         self.model = nn.Sequential(
-            self.layer1, self.relu1, self.layer2, self.relu2, self.layer3, self.relu3, self.layer4, self.relu4,
+            self.layer1,
+            self.relu1,
+            self.layer2,
+            self.relu2,
+            self.layer3,
+            self.relu3,
+            self.layer4,
+            self.relu4,
             self.layer5
         )
 
@@ -157,15 +180,18 @@ class RotationNetPl(pl.LightningModule):
 
         self.geo_dist = GeodesicDist(reduction="mean")
 
+        self.acc_test_deg = AccLoss()
+        self.acc_val_deg = AccLoss()
+
     def forward(self, inputs: torch.Tensor):
-        """
+        """Note: Unused
         Args:
-            inputs: Shape: [B, N]
+            inputs: Shape: [B, 8, 64, 64]
         """
         out = self.model(inputs)
         return out
 
-    def _step(self, batch, stage: Stage):
+    def _step(self, batch):
         inputs = batch["input"]
         labels = batch["target"]
         bsize = inputs.shape[0]
@@ -174,24 +200,39 @@ class RotationNetPl(pl.LightningModule):
         preds = self.model(inputs)  # Shape: [B, 6]
 
         loss = self.geo_dist(preds, labels)
-        self.log(f"{stage.value}/loss", loss, on_step=False, on_epoch=True)
-
-        outputs = {
-            "loss": loss
-        }
-        return outputs
+        angle = loss.detach().item() * 180 / np.pi
+        return loss, angle
 
     def training_step(self, batch, batch_idx):
         """Defines the train loop. It is independent of forward().
         Don’t use any cuda or .to(device) calls in the code. PL will move the tensors to the correct device.
         """
-        return self._step(batch, Stage.TRAIN)
+        loss, angle = self._step(batch)
+        self.log(f"Train/loss", loss, on_step=False, on_epoch=True)
+        self.log(f"Metrics/train_angle", angle, on_step=False, on_epoch=True)
+        return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
-        return self._step(batch, Stage.VAL)
+        loss, angle = self._step(batch)
+        self.log(f"Val/loss", loss, on_step=False, on_epoch=True)
+        self.acc_val_deg.acc(angle)
+        return {"loss": loss}
 
     def test_step(self, batch, batch_idx):
-        return self._step(batch, Stage.TEST)
+        loss, angle = self._step(batch)
+        self.log(f"Test/loss", loss, on_step=False, on_epoch=True)
+        self.acc_test_deg.acc(angle)
+        return {"loss": loss}
+
+    def on_validation_end(self) -> None:
+        # Log the final error in degrees. For readability
+        mean_angle = self.acc_val_deg.compute()
+        self.log(f"Metrics/val_angle", mean_angle, on_step=False, on_epoch=True)
+
+    def on_test_end(self) -> None:
+        # Log the final error in degrees. For readability
+        mean_angle = self.acc_test_deg.compute()
+        self.log(f"Metrics/test_angle", mean_angle, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, self.parameters()),
@@ -210,7 +251,7 @@ def main():
                                        save_dir=str("./logs"))
 
     callbacks = [
-        ModelCheckpoint(save_top_k=2, monitor="Train/loss", mode="min"),  #
+        ModelCheckpoint(save_top_k=1, monitor="Val/loss", mode="min", filename="best"),
     ]
     model = RotationNetPl()
 
@@ -229,7 +270,7 @@ def main():
         logger=wb_logger,
         callbacks=callbacks,
         # default_root_dir=str(default_root_dir),
-        #strategy=DDPPlugin(find_unused_parameters=False),
+        strategy=DDPPlugin(find_unused_parameters=False),
         gpus=1,
         precision=32,
         max_epochs=100,
@@ -243,7 +284,7 @@ def main():
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     # Testing
-    _ = trainer.test(model, test_dataloaders=test_loader, ckpt_path='best')
+    _ = trainer.test(model, test_dataloaders=test_loader, ckpt_path="best")
 
     wandb.finish()
 
