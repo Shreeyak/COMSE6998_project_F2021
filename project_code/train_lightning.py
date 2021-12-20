@@ -31,20 +31,6 @@ class Stage(Enum):
     TEST = "Test"
 
 
-class AccLoss:
-    """Accumulate all the losses and average at end of epoch"""
-    def __init__(self):
-        self.total_loss = 0
-        self.num_steps = 0
-
-    def acc(self, loss):
-        self.total_loss += loss
-        self.num_steps += 1
-
-    def compute(self):
-        return self.total_loss / self.num_steps
-
-
 class OrthoMatrix:
     """Functions to create an Orthonormal Matrix from the prediction of the model.
     Borrowed from code of paper "On The Continuity of Rotation Representations in Neural Networks"
@@ -177,11 +163,7 @@ class RotationNetPl(pl.LightningModule):
 
         # self.model = RotationNet()
         self.model = RotationConvNet((64, 64), input_channels=8)
-
         self.geo_dist = GeodesicDist(reduction="mean")
-
-        self.acc_test_deg = AccLoss()
-        self.acc_val_deg = AccLoss()
 
     def forward(self, inputs: torch.Tensor):
         """Note: Unused
@@ -209,30 +191,20 @@ class RotationNetPl(pl.LightningModule):
         """
         loss, angle = self._step(batch)
         self.log(f"Train/loss", loss, on_step=False, on_epoch=True)
-        self.log(f"Metrics/train_angle", angle, on_step=False, on_epoch=True)
+        self.log(f"Train/angle", angle, on_step=False, on_epoch=True)
         return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
         loss, angle = self._step(batch)
         self.log(f"Val/loss", loss, on_step=False, on_epoch=True)
-        self.acc_val_deg.acc(angle)
+        self.log(f"Val/angle", angle, on_step=False, on_epoch=True)
         return {"loss": loss}
 
     def test_step(self, batch, batch_idx):
         loss, angle = self._step(batch)
         self.log(f"Test/loss", loss, on_step=False, on_epoch=True)
-        self.acc_test_deg.acc(angle)
+        self.log(f"Test/angle", angle, on_step=False, on_epoch=True)
         return {"loss": loss}
-
-    def on_validation_end(self) -> None:
-        # Log the final error in degrees. For readability
-        mean_angle = self.acc_val_deg.compute()
-        self.log(f"Metrics/val_angle", mean_angle, on_step=False, on_epoch=True)
-
-    def on_test_end(self) -> None:
-        # Log the final error in degrees. For readability
-        mean_angle = self.acc_test_deg.compute()
-        self.log(f"Metrics/test_angle", mean_angle, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, self.parameters()),
@@ -249,10 +221,10 @@ def main():
     dir_root.mkdir(exist_ok=True)
     wb_logger = pl_loggers.WandbLogger(name=None, id=None, entity="rotteam", project="rotenv",
                                        save_dir=str("./logs"))
-
     callbacks = [
         ModelCheckpoint(save_top_k=1, monitor="Val/loss", mode="min", filename="best"),
     ]
+
     model = RotationNetPl()
 
     data_root_dir = Path("./dataset")
