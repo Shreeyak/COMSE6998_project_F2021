@@ -102,7 +102,7 @@ def main():
 
     dir_root = Path("./logs")
     dir_root.mkdir(exist_ok=True)
-    wb_logger = pl_loggers.WandbLogger(name=None, id=None, entity="sd3109", project="rotenv",
+    wb_logger = pl_loggers.WandbLogger(name=None, id=None, entity="rotteam", project="rotenv",
                                        save_dir=str("./logs"))
 
     callbacks = [
